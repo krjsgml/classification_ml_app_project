@@ -455,9 +455,11 @@ class ML_app(QMainWindow):
             else:
                 error = 1
 
-        self.label_encoder = LabelEncoder()
-        self.y_train = self.label_encoder.fit_transform(self.y_train)
-        self.y_train = pd.Series(self.y_train)
+        # 이미 엔코딩이 되어있는 경우를 위해 y_train이 object type이면 엔코딩하기
+        if self.y_train.dtype == 'object':
+            self.label_encoder = LabelEncoder()
+            self.y_train = self.label_encoder.fit_transform(self.y_train)
+            self.y_train = pd.Series(self.y_train)
 
         if error == 1:
             QMessageBox.about(self, "error", "select please")
