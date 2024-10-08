@@ -430,8 +430,13 @@ class ML_app(QMainWindow):
             if self.label_encoding.isChecked():
                 encoder = LabelEncoder()
                 for col in self.objs_X_train:
-                    self.X_train[col] = encoder.fit_transform(self.X_train[[col]])
-                    self.X_test[col] = encoder.transform(self.X_test[col])
+                    try:
+                        self.X_train[col] = encoder.fit_transform(self.X_train[[col]])
+                        self.X_test[col] = encoder.transform(self.X_test[col])
+                    except:
+                        self.X_train = self.X_train.drop(columns=[col])
+                        self.X_test = self.X_test.drop(columns=[col])
+                        QMessageBox.about(self, "error", f"drop {col}")
 
             elif self.one_hot_encoding.isChecked():
                 encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
