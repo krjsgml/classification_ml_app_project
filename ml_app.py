@@ -129,6 +129,8 @@ class ML_app(QMainWindow):
 
     def EDA(self):
         self.clear_layout(self.preprocess_layout)
+        self.clear_layout(self.model_setup_layout)
+        self.clear_layout(self.model_hyperparameter_layout)
         print("=================STEP1=================")
 
         self.step1_data = self.selected_data.copy()
@@ -312,6 +314,8 @@ class ML_app(QMainWindow):
 
     def missing_outlier_value(self):
         self.clear_layout(self.preprocess_layout)
+        self.clear_layout(self.model_setup_layout)
+        self.clear_layout(self.model_hyperparameter_layout)
         print("\n=================STEP2=================")
 
         self.step3.setEnabled(False)
@@ -448,6 +452,8 @@ class ML_app(QMainWindow):
     
     def data_scale_encoding(self):
         self.clear_layout(self.preprocess_layout)
+        self.clear_layout(self.model_setup_layout)
+        self.clear_layout(self.model_hyperparameter_layout)
         print("\n=================STEP3=================")
 
         self.step4.setEnabled(False)
@@ -610,8 +616,11 @@ class ML_app(QMainWindow):
         print(f"train_test_split_ratio(%): {self.train_test_split_input.value()}")
 
     def class_imbalance(self):
-        print("\n=================STEP4=================")
+        self.clear_layout(self.model_setup_layout)
+        self.clear_layout(self.model_hyperparameter_layout)
         self.clear_layout(self.preprocess_layout)
+
+        print("\n=================STEP4=================")
         print(f"\ny_train value counts\n{self.y_train.value_counts()}")
 
         self.sampling_x = None
