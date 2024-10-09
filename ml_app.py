@@ -394,7 +394,7 @@ class ML_app(QMainWindow):
 
         if self.missing_found:
             if self.missing_val_delete.isChecked():
-                self.self.step2_data.dropna(inplace=True)
+                self.step2_data.dropna(inplace=True)
 
             elif self.missing_val_replace.isChecked():
                 missing_indices = self.step2_data[self.step2_data.isnull().any(axis=1)].index.tolist()
@@ -715,7 +715,7 @@ class ML_app(QMainWindow):
         if model_name == 'Logistic Regression':
             self.max_iters= QSpinBox()
             self.max_iters.setMinimum(1)
-            self.max_iters.setMaximum(500)
+            self.max_iters.setMaximum(1000)
             max_iters_layout = QHBoxLayout()
             max_iters_layout.addWidget(QLabel("Max Iterations : "))
             max_iters_layout.addWidget(self.max_iters)
@@ -727,6 +727,7 @@ class ML_app(QMainWindow):
         elif model_name == 'Decision Tree':
             self.dt_max_depth = QSpinBox()
             self.dt_max_depth.setMinimum(1)
+            self.dt_max_depth.setMaximum(1000)
             max_depth_layout = QHBoxLayout()
             max_depth_layout.addWidget(QLabel('Max Depth : '))
             max_depth_layout.addWidget(self.dt_max_depth)
@@ -738,6 +739,7 @@ class ML_app(QMainWindow):
         elif model_name == 'Random Forest':
             self.rf_max_depth = QSpinBox()
             self.rf_max_depth.setMinimum(1)
+            self.rf_max_depth.setMaximum(1000)
             max_depth_layout = QHBoxLayout()
             max_depth_layout.addWidget(QLabel('Max Depth : '))
             max_depth_layout.addWidget(self.rf_max_depth)
@@ -747,7 +749,7 @@ class ML_app(QMainWindow):
 
             self.n_estimators = QSpinBox()
             self.n_estimators.setMinimum(1)
-            self.n_estimators.setMaximum(150)
+            self.n_estimators.setMaximum(1000)
             n_estimators_layout = QHBoxLayout()
             n_estimators_layout.addWidget(QLabel('n_estimators : '))
             n_estimators_layout.addWidget(self.n_estimators)
