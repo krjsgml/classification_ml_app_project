@@ -397,12 +397,15 @@ class ML_app(QMainWindow):
                 nums = self.step2_data.select_dtypes(include=['int', 'float']).columns.tolist()
                 objs = self.step2_data.select_dtypes(include=['object']).columns.tolist()
 
+                print(f"\n결측치 대체 전 해당 행\n{self.step2_data.iloc[missing_indices]}")
+
                 for num in nums:
                     self.step2_data[num] = self.step2_data[num].fillna(self.step2_data[num].mean())
                 for obj in objs:
-                    self.step2_data[obj] = self.step2_data[obj].fillna(self.step2_data[obj].mode())
+                    self.step2_data[obj] = self.step2_data[obj].fillna(self.step2_data[obj].mode().iloc[0])
                 
-                print(f"\n측치 대체 후 해당 행\n{self.step2_data[missing_indices]}")
+                print(f"\n결측치 대체 후 해당 행\n{self.step2_data.iloc[missing_indices]}")
+                print(f"결측치 갯수 : {self.step2_data.isnull().sum()}")
 
             else:
                 error = 1
@@ -428,7 +431,6 @@ class ML_app(QMainWindow):
 
         else:
             self.clear_layout(self.preprocess_layout)
-            print(f"Selected Data Info\n{str(self.step2_data.info())}")
             print(f"Selected Data Head\n{self.step2_data.head()}")
             self.preprocess_layout.addWidget(QLabel("Go Next Step"))
             QMessageBox.about(self, "complete", "missing val & outlier val preprocess complete")
