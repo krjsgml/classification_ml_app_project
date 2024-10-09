@@ -3,3 +3,5 @@ data
 test.py
 
 lazyloading.py
+
+__pycache__
