@@ -99,6 +99,7 @@ class ML_app(QMainWindow):
             QMessageBox.about(self, 'Load Data', f'Data loaded: {filename}')
             self.image_label.hide()     # Hide main image
             self.preprocess()
+            print(f"Selected Data head\n{self.selected_data.head()}")
         
     def preprocess(self):
         preprocessing_layout = QVBoxLayout()
@@ -121,13 +122,7 @@ class ML_app(QMainWindow):
 
     def EDA(self):
         self.clear_layout(self.preprocess_layout)
-
-        # 고유한 칼럼 삭제 list에 추가
-        self.drop_cols = []
-        for col in self.selected_data.columns:
-            if self.selected_data[col].nunique() == len(self.selected_data):
-                self.drop_cols.append(col)
-        #self.selected_data.drop(columns=drop_cols, inplace=True)
+        print("=================STEP1=================")
 
         EDA_layout = QVBoxLayout()
         EDA_menu_layout = QHBoxLayout()
@@ -208,6 +203,7 @@ class ML_app(QMainWindow):
     def show_graph(self):
         variable = self.graph_variable_selection.currentText()
         if variable != "Select Variable":
+            print(f"Show Graph Variable : {variable}")
             if self.selected_data[variable].dtype in ['int', 'float']:
                 sns.histplot(data=self.selected_data, x=self.selected_data[variable])
 
@@ -219,6 +215,7 @@ class ML_app(QMainWindow):
     def drop_ok(self):
         variable = self.drop_variable_selection.currentText()
         if variable != "Select Variable":
+            print(f"Drop Variable : {variable}")
             self.selected_data.drop(columns=[variable], inplace=True)
             target_col_index = self.target_variable_selection.findText(variable)
             graph_col_index = self.graph_variable_selection.findText(variable)
@@ -226,12 +223,13 @@ class ML_app(QMainWindow):
             self.target_variable_selection.removeItem(target_col_index)
             self.graph_variable_selection.removeItem(graph_col_index)
             self.drop_variable_selection.removeItem(drop_col_index)
-
+            
             QMessageBox.about(self, "Delete Variable", f"drop {variable}")
 
     def target_variable_split(self, text):
         # x,y 분리는 이상치와 결측치 제거 후 진행
         if text != 'Select Variable':
+            print(f"Target Variable : {text}")
             self.target_variable = text
 
     def missing_outlier_value(self):
@@ -240,6 +238,8 @@ class ML_app(QMainWindow):
 
         else:
             self.clear_layout(self.preprocess_layout)
+            print("\n=================STEP2=================")
+
             self.missing_found = 0
             self.outlier_found = 0
             missing_layout = QVBoxLayout()
@@ -251,9 +251,14 @@ class ML_app(QMainWindow):
             self.preprocess_layout.addWidget(self.missing_outlier_ok)
             self.preprocess_layout.addStretch(2)
 
-            # missing value
-            missing_value_cnt = self.selected_data.isnull().sum().sum()
-            if missing_value_cnt > 0:
+            missing_cols = []
+            for col in self.selected_data.columns:
+                if self.selected_data[col].isnull().any():
+                    missing_cols.append(col)
+
+            print(f"Find col have missing value {str(missing_cols)}")
+
+            if len(missing_cols) > 0:
                 self.missing_found = 1
 
             if self.missing_found:
@@ -272,10 +277,15 @@ class ML_app(QMainWindow):
             else:
                 missing_layout.addWidget(QLabel('Not found missing values'))
 
+            outlier_cols = []
+
             for col in self.selected_data.select_dtypes(include=['float', 'int']):
                 lower, upper = self.outlier_bound(col)
                 if ((self.selected_data[col] < lower) | (self.selected_data[col] > upper)).any():
+                    outlier_cols.append(col)
                     self.outlier_found = 1
+
+            print(f"Find col have outlier value {str(outlier_cols)}")
 
             if self.outlier_found:
                 outlier_layout.addWidget(QLabel('select outlier value Delete or Replace'))
@@ -302,6 +312,7 @@ class ML_app(QMainWindow):
                 self.selected_data.dropna(inplace=True)
 
             elif self.missing_val_replace.isChecked():
+                missing_indices = self.selected_data[self.selected_data.isnull().any(axis=1)].index.tolist()
                 nums = self.selected_data.select_dtypes(include=['int', 'float']).columns.tolist()
                 objs = self.selected_data.select_dtypes(include=['object']).columns.tolist()
 
@@ -309,6 +320,8 @@ class ML_app(QMainWindow):
                     self.selected_data[num] = self.selected_data[num].fillna(self.selected_data[num].mean())
                 for obj in objs:
                     self.selected_data[obj] = self.selected_data[obj].fillna(self.selected_data[obj].mode())
+                
+                print(f"\n측치 대체 후 해당 행\n{self.selected_data[missing_indices]}")
 
             else:
                 error = 1
@@ -336,6 +349,8 @@ class ML_app(QMainWindow):
 
         else:
             self.clear_layout(self.preprocess_layout)
+            print(f"Selected Data Info\n{str(self.selected_data.info())}")
+            print(f"Selected Data Head\n{self.selected_data.head()}")
             self.preprocess_layout.addWidget(QLabel("Go Next Step"))
             QMessageBox.about(self, "complete", "missing val & outlier val preprocess complete")
 
@@ -350,6 +365,8 @@ class ML_app(QMainWindow):
     
     def data_scale_encoding(self):
         self.clear_layout(self.preprocess_layout)
+        print("\n=================STEP3=================")
+
         self.preprocess_layout.addWidget(QLabel("train-test-split ratio"))
         self.train_test_split_input = QSpinBox()
         self.preprocess_layout.addWidget(self.train_test_split_input)
@@ -362,6 +379,14 @@ class ML_app(QMainWindow):
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             self.X, self.y, test_size=float(self.train_test_split_input.value()/100), random_state=42, stratify=self.y
         )
+        print(f"train_test_split_ratio(%): {self.train_test_split_input.value()}")
+        print(f"\nX_train head\n{self.X_train.head()}")
+        print(f"\nX_test head\n{self.X_test.head()}")
+        print(f"\ny_train head\n{self.y_train.head()}")
+        print(f"\ny_train value counts\n{self.y_train.value_counts()}")
+        print(f"\ny_test head\n{self.y_test.head()}")
+        print(f"\ny_test value counts\n{self.y_test.value_counts()}")
+
         self.train_test_split_input.valueChanged.connect(self.train_test_split_)
 
         data_scale_layout = QHBoxLayout()
@@ -414,20 +439,29 @@ class ML_app(QMainWindow):
     
         if len(self.nums_X_train) > 0:
             if self.normalization.isChecked():
+                print(f"data scaling(Normalization) : {self.nums_X_train}")
                 scaler = MinMaxScaler()
                 self.X_train[self.nums_X_train] = scaler.fit_transform(self.X_train[self.nums_X_train])
                 self.X_test[self.nums_X_test] = scaler.transform(self.X_test[self.nums_X_test])
+
+                print(f"\nAfter Scaling X_train head\n{self.X_train.head()}")
+                print(f"\nAfter scaling X_test head\n{self.X_test.head()}")
             
             elif self.standardization.isChecked():
+                print(f"data scaling(Standardization) : {self.nums_X_train}")
                 scaler = StandardScaler()
                 self.X_train[self.nums_X_train] = scaler.fit_transform(self.X_train[self.nums_X_train])
                 self.X_test[self.nums_X_test] = scaler.transform(self.X_test[self.nums_X_test])
+
+                print(f"\nAfter Scaling X_train head\n{self.X_train.head()}")
+                print(f"\nAfter scaling X_test head\n{self.X_test.head()}")
 
             else:
                 error = 1
 
         if len(self.objs_X_train) > 0:
             if self.label_encoding.isChecked():
+                print(f"encoding(Label Encoding) : {self.objs_X_train}")
                 encoder = LabelEncoder()
                 for col in self.objs_X_train:
                     try:
@@ -438,9 +472,12 @@ class ML_app(QMainWindow):
                         self.X_test = self.X_test.drop(columns=[col])
                         QMessageBox.about(self, "error", f"drop {col}")
 
-            elif self.one_hot_encoding.isChecked():
-                encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+                print(f"\nAfter Encoding X_train head\n{self.X_train.head()}")
+                print(f"\nAfter Encoding X_test head\n{self.X_test.head()}")
 
+            elif self.one_hot_encoding.isChecked():
+                print(f"encoding(One-Hot Encoding) : {self.objs_X_train}")
+                encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
                 for col in self.objs_X_train:
                     transformed_train = encoder.fit_transform(self.X_train[[col]])
                     encoded_cols = [f"{col}_{category}" for category in encoder.categories_[0]]
@@ -452,14 +489,21 @@ class ML_app(QMainWindow):
                     self.X_train = pd.concat([self.X_train, transformed_train_df], axis=1).drop(columns=[col])
                     self.X_test = pd.concat([self.X_test, transformed_test_df], axis=1).drop(columns=[col])
 
+                print(f"\nAfter Encoding X_train head\n{self.X_train.head()}")
+                print(f"\nAfter Encoding X_test head\n{self.X_test.head()}")
+
             else:
                 error = 1
-
+        
+        self.label_encoder = None
         # 이미 엔코딩이 되어있는 경우를 위해 y_train이 object type이면 엔코딩하기
         if self.y_train.dtype == 'object':
+            print(f"encoding(Label Encoding) - y_train dataset : {self.y_train.columns.tolist()}")
             self.label_encoder = LabelEncoder()
             self.y_train = self.label_encoder.fit_transform(self.y_train)
             self.y_train = pd.Series(self.y_train)
+
+            print(f"\nAfter Encoding y_train head\n{self.y_train.head()}")
 
         if error == 1:
             QMessageBox.about(self, "error", "select please")
@@ -473,9 +517,12 @@ class ML_app(QMainWindow):
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             self.X, self.y, test_size=float(self.train_test_split_input.value()/100), random_state=42, stratify=self.y
         )
+        print(f"train_test_split_ratio(%): {self.train_test_split_input.value()}")
 
     def class_imbalance(self):
+        print("\n=================STEP4=================")
         self.clear_layout(self.preprocess_layout)
+        print(f"\ny_train value counts\n{self.y_train.value_counts()}")
 
         self.sampling_x = None
         self.sampling_y = None
@@ -517,6 +564,7 @@ class ML_app(QMainWindow):
         self.sampling_y = self.y_train.copy()
         self.sampling_x, self.sampling_y = RandomOverSampler(random_state=0).fit_resample(self.sampling_x, self.sampling_y)
         self.sampling_y = pd.DataFrame(self.sampling_y, columns=[self.target_variable])
+        print(f"\ny_train value counts\n{self.sampling_y.value_counts()}")
        
         self.plot_target_variable(self.sampling_y)
 
@@ -525,7 +573,7 @@ class ML_app(QMainWindow):
         self.sampling_y = self.y_train.copy()
         self.sampling_x, self.sampling_y = RandomUnderSampler(random_state=0).fit_resample(self.sampling_x, self.sampling_y)
         self.sampling_y = pd.DataFrame(self.sampling_y, columns=[self.target_variable])
-       
+        print(f"\ny_train value counts\n{self.sampling_y.value_counts()}")
         self.plot_target_variable(self.sampling_y)
 
     def sampling_process_ok(self):
@@ -622,7 +670,8 @@ class ML_app(QMainWindow):
     def train(self):
         self.model.fit(self.X_train, self.y_train)
         y_pred = self.model.predict(self.X_test)
-        y_pred = self.label_encoder.inverse_transform(y_pred)
+        if self.label_encoder is not None:
+            y_pred = self.label_encoder.inverse_transform(y_pred)
         cr = classification_report(self.y_test, y_pred)
         cm = confusion_matrix(self.y_test, y_pred)
         accuracy = accuracy_score(self.y_test, y_pred)
