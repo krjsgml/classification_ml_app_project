@@ -1,15 +1,22 @@
 <h1>분류 문제 머신러닝 앱</h1> 
 
 <h2>[기능]</h2>
+
 - 데이터 업로드
+
 - 간단한 EDA
+  
 - 결측치, 이상치 처리(대체, 삭제)
+  
 - 데이터 스케일링(정규화, 표준화) / 엔코딩(라벨, 원핫)
+  
 - 클래스 불균형(over, under sampling)
+
 - 모델링(Logistic Regression, Decision Tree, Random Forest)
 
 <h2>[설명]</h2>
-전처리 과정이 4단계로 구성되어있음<br>
+전처리 과정이 4단계로 구성되어있음
+
 * STEP1
     - 데이터의 info, describe, value_counts 확인, 타겟 변수 설정, 각 변수의 그래프를 확인, 필요없는 변수 삭제
     
