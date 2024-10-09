@@ -3,10 +3,9 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtGui import QIcon, QPixmap, QFont
 from PyQt5.QtCore import Qt
 from io import StringIO
-import math
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -17,6 +16,7 @@ from imblearn.over_sampling import RandomOverSampler
 from collections import Counter
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import seaborn as sns
+from lazyloading import LazyLoadingTable
 
 
 class ML_app(QMainWindow):
@@ -203,15 +203,72 @@ class ML_app(QMainWindow):
         self.step1_data.info(buf=buffer)
         data_info = buffer.getvalue()
 
-        data_describe = str(self.step1_data.describe())
-        data_value_counts = str(self.step1_data.value_counts())
+        data_describe = self.step1_data.describe()
 
         info.clicked.connect(lambda : self.clear_layout(EDA_show_layout))
-        info.clicked.connect(lambda : EDA_show_layout.addWidget(QLabel(data_info)))
+        info.clicked.connect(lambda : display_info(EDA_show_layout, data_info))
+
         describe.clicked.connect(lambda : self.clear_layout(EDA_show_layout))
-        describe.clicked.connect(lambda : EDA_show_layout.addWidget(QLabel(data_describe)))
+        describe.clicked.connect(lambda : display_describe(EDA_show_layout, data_describe))
+
         value_counts.clicked.connect(lambda : self.clear_layout(EDA_show_layout))
-        value_counts.clicked.connect(lambda : EDA_show_layout.addWidget(QLabel(data_value_counts)))
+        value_counts.clicked.connect(lambda : select_value_counts(EDA_show_layout, self.step1_data))
+
+        def display_info(layout, info):        
+            text_edit = QPlainTextEdit()
+            text_edit.setPlainText(info)
+            text_edit.setReadOnly(True)
+            
+            # 고정폭 글꼴 설정
+            font = QFont("Courier New")
+            font.setStyleHint(QFont.Monospace)
+            text_edit.setFont(font)
+            
+            layout.addWidget(text_edit)
+
+        def display_describe(layout, df):
+            table = QTableWidget()
+            table.setRowCount(len(df))  # 행 수 설정
+            table.setColumnCount(len(df.columns) + 1)  # 열 수 설정 (+1은 인덱스 열을 위해)
+
+            # 인덱스 열 헤더를 추가 (통계 값 이름: mean, max, min 등)
+            headers = [''] + list(df.columns)  # 빈 헤더로 첫 번째 열에 인덱스를 추가할 공간 확보
+            table.setHorizontalHeaderLabels(headers)  # 열 헤더 설정
+
+            # 데이터 삽입
+            for row in range(len(df)):
+                # 인덱스 값을 첫 번째 열에 삽입
+                table.setItem(row, 0, QTableWidgetItem(str(df.index[row])))
+
+                for col in range(len(df.columns)):
+                    table.setItem(row, col + 1, QTableWidgetItem(str(df.iloc[row, col])))
+
+            layout.addWidget(table)
+
+        def display_value_counts(layout, df, col, chunk_size=100):
+            if col:
+                self.clear_layout(layout)
+
+                data = df[col].value_counts()
+
+                # LazyLoadingTable을 사용하여 데이터를 점진적으로 로드
+                table = LazyLoadingTable(self, data=data.reset_index(), chunk_size=chunk_size)
+
+                # 레이아웃에 테이블 추가
+                layout.addWidget(table)
+
+        def select_value_counts(layout, df):
+            select_col_layout = QVBoxLayout()
+            show_value_counts_layout = QHBoxLayout()
+
+            select_col_value_counts = QComboBox()
+            select_col_layout.addWidget(select_col_value_counts)
+
+            layout.addLayout(select_col_layout)
+            layout.addLayout(show_value_counts_layout)
+
+            select_col_value_counts.addItems(df.columns)
+            select_col_value_counts.currentTextChanged.connect(lambda col : display_value_counts(show_value_counts_layout, df, col))
 
     def show_graph(self):
         variable = self.graph_variable_selection.currentText()
@@ -361,8 +418,6 @@ class ML_app(QMainWindow):
                     self.step2_data[col] = self.step2_data[col].apply(
                         lambda x: col_min if x < lower else (col_max if x > upper else x)
                     )
-            else:
-                error = 1
         
         if error == 1:
             QMessageBox.about(self, "erorr", "select please")
@@ -612,7 +667,6 @@ class ML_app(QMainWindow):
 
         self.y_train = self.y_train.squeeze()
         self.clear_layout(self.preprocess_layout)
-        self.clear_layout(self.preprocess_step_layout)
         QMessageBox.about(self, "complete", "Finished Preprocessing Step \n Now Go to the Modeling")
         self.model_setup()
 
