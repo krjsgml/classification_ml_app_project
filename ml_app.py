@@ -23,9 +23,6 @@ class ML_app(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.selected_data = None
-        self.target_variable = None
-        self.model = None
 
     def initUI(self):
         self.setWindowTitle("ML Classification Application")
@@ -97,32 +94,49 @@ class ML_app(QMainWindow):
         if os.path.exists(data_path):
             self.selected_data = pd.read_csv(data_path)
             QMessageBox.about(self, 'Load Data', f'Data loaded: {filename}')
+
+            layouts = [self.model_setup_layout, self.model_hyperparameter_layout, self.preprocess_layout, self.preprocess_step_layout]
+            for layout in layouts:
+                self.clear_layout(layout)
+
             self.image_label.hide()     # Hide main image
-            self.preprocess()
+            self.clear_layout
+            self.preprocess()           # preprocess step
+
             print(f"Selected Data head\n{self.selected_data.head()}")
         
     def preprocess(self):
         preprocessing_layout = QVBoxLayout()
-        step1 = QPushButton('STEP1')
-        step2 = QPushButton('STEP2')
-        step3 = QPushButton('STEP3')
-        step4 = QPushButton('STEP4')
+        self.step1 = QPushButton('STEP1')
+        self.step2 = QPushButton('STEP2')
+        self.step3 = QPushButton('STEP3')
+        self.step4 = QPushButton('STEP4')
 
-        preprocessing_layout.addWidget(step1)
-        preprocessing_layout.addWidget(step2)
-        preprocessing_layout.addWidget(step3)
-        preprocessing_layout.addWidget(step4)
+        preprocessing_layout.addWidget(self.step1)
+        preprocessing_layout.addWidget(self.step2)
+        preprocessing_layout.addWidget(self.step3)
+        preprocessing_layout.addWidget(self.step4)
 
-        step1.clicked.connect(self.EDA)
-        step2.clicked.connect(self.missing_outlier_value)
-        step3.clicked.connect(self.data_scale_encoding)
-        step4.clicked.connect(self.class_imbalance)
+        self.step1.clicked.connect(self.EDA)
+        self.step2.clicked.connect(self.missing_outlier_value)
+        self.step3.clicked.connect(self.data_scale_encoding)
+        self.step4.clicked.connect(self.class_imbalance)
+
+        self.step2.setEnabled(False)
+        self.step3.setEnabled(False)
+        self.step4.setEnabled(False)
 
         self.preprocess_step_layout.addLayout(preprocessing_layout)
 
     def EDA(self):
         self.clear_layout(self.preprocess_layout)
         print("=================STEP1=================")
+
+        self.step1_data = self.selected_data.copy()
+
+        self.step2.setEnabled(False)
+        self.step3.setEnabled(False)
+        self.step4.setEnabled(False)
 
         EDA_layout = QVBoxLayout()
         EDA_menu_layout = QHBoxLayout()
@@ -136,9 +150,8 @@ class ML_app(QMainWindow):
         select_target_variable_layout.addWidget(self.target_variable_selection)
 
         self.target_variable_selection.addItem('Select Variable')
-        self.target_variable_selection.addItems(self.selected_data.columns)
+        self.target_variable_selection.addItems(self.step1_data)
         self.target_variable_selection.activated[str].connect(self.target_variable_split)
-
 
         # 변수 그래프 보여주기
         select_show_graph_variable_layout = QHBoxLayout()
@@ -148,7 +161,7 @@ class ML_app(QMainWindow):
         select_show_graph_variable_layout.addWidget(self.graph_variable_selection)
 
         self.graph_variable_selection.addItem("Select Variable")
-        self.graph_variable_selection.addItems(self.selected_data.columns)
+        self.graph_variable_selection.addItems(self.step1_data)
 
         self.show_graph_btn = QPushButton("Show")
         select_show_graph_variable_layout.addWidget(self.show_graph_btn)
@@ -162,7 +175,7 @@ class ML_app(QMainWindow):
         select_drop_variable_layout.addWidget(self.drop_variable_selection)
 
         self.drop_variable_selection.addItem("Select Variable")
-        self.drop_variable_selection.addItems(self.selected_data.columns)
+        self.drop_variable_selection.addItems(self.step1_data.columns)
         
         drop_btn = QPushButton("Drop")
         select_drop_variable_layout.addWidget(drop_btn)
@@ -187,11 +200,11 @@ class ML_app(QMainWindow):
         EDA_menu_layout.addWidget(value_counts)
 
         buffer = StringIO()
-        self.selected_data.info(buf=buffer)
+        self.step1_data.info(buf=buffer)
         data_info = buffer.getvalue()
 
-        data_describe = str(self.selected_data.describe())
-        data_value_counts = str(self.selected_data.value_counts())
+        data_describe = str(self.step1_data.describe())
+        data_value_counts = str(self.step1_data.value_counts())
 
         info.clicked.connect(lambda : self.clear_layout(EDA_show_layout))
         info.clicked.connect(lambda : EDA_show_layout.addWidget(QLabel(data_info)))
@@ -204,11 +217,11 @@ class ML_app(QMainWindow):
         variable = self.graph_variable_selection.currentText()
         if variable != "Select Variable":
             print(f"Show Graph Variable : {variable}")
-            if self.selected_data[variable].dtype in ['int', 'float']:
-                sns.histplot(data=self.selected_data, x=self.selected_data[variable])
+            if self.step1_data[variable].dtype in ['int', 'float']:
+                sns.histplot(data=self.step1_data, x=self.step1_data[variable])
 
             else:
-                self.selected_data[variable].value_counts().plot(kind='bar', alpha=0.7)
+                self.step1_data[variable].value_counts().plot(kind='bar', alpha=0.7)
 
             plt.show()
 
@@ -216,7 +229,7 @@ class ML_app(QMainWindow):
         variable = self.drop_variable_selection.currentText()
         if variable != "Select Variable":
             print(f"Drop Variable : {variable}")
-            self.selected_data.drop(columns=[variable], inplace=True)
+            self.step1_data.drop(columns=[variable], inplace=True)
             target_col_index = self.target_variable_selection.findText(variable)
             graph_col_index = self.graph_variable_selection.findText(variable)
             drop_col_index = self.drop_variable_selection.findText(variable)
@@ -232,113 +245,120 @@ class ML_app(QMainWindow):
             print(f"Target Variable : {text}")
             self.target_variable = text
 
+            # 다음 단계 (step2) 이동 가능
+            self.step2.setEnabled(True)
+
+
     def missing_outlier_value(self):
-        if self.target_variable_selection.currentText() == "Select Variable":
-            QMessageBox.about(self, "Error", "Please select target variable")
+        self.clear_layout(self.preprocess_layout)
+        print("\n=================STEP2=================")
+
+        self.step3.setEnabled(False)
+        self.step4.setEnabled(False)
+
+        # 각 step별 개별적인 데이터셋이 필요
+        self.step2_data = self.step1_data.copy()
+
+        self.missing_found = 0
+        self.outlier_found = 0
+        missing_layout = QVBoxLayout()
+        outlier_layout = QVBoxLayout()
+        self.preprocess_layout.addLayout(missing_layout)
+        self.preprocess_layout.addLayout(outlier_layout)
+        self.missing_outlier_ok = QPushButton("OK")
+        self.preprocess_layout.addStretch(1)
+        self.preprocess_layout.addWidget(self.missing_outlier_ok)
+        self.preprocess_layout.addStretch(2)
+
+        missing_cols = []
+        for col in self.step2_data:
+            if self.step2_data[col].isnull().any():
+                missing_cols.append(col)
+
+        print(f"Find col have missing value {str(missing_cols)}")
+
+        if len(missing_cols) > 0:
+            self.missing_found = 1
+
+        if self.missing_found:
+            missing_layout.addWidget(QLabel('Select missing value Delete or Replace'))
+            select_missing_value = QHBoxLayout()
+            self.missing_val_delete = QCheckBox("Delete")
+            self.missing_val_replace = QCheckBox("Replace")
+
+            select_missing_value.addWidget(self.missing_val_delete)
+            select_missing_value.addWidget(self.missing_val_replace)
+
+            self.missing_val_delete.toggled.connect(lambda: self.missing_val_replace.setChecked(False))
+            self.missing_val_replace.toggled.connect(lambda: self.missing_val_delete.setChecked(False))
+            missing_layout.addLayout(select_missing_value)
 
         else:
-            self.clear_layout(self.preprocess_layout)
-            print("\n=================STEP2=================")
+            missing_layout.addWidget(QLabel('Not found missing values'))
 
-            self.missing_found = 0
-            self.outlier_found = 0
-            missing_layout = QVBoxLayout()
-            outlier_layout = QVBoxLayout()
-            self.preprocess_layout.addLayout(missing_layout)
-            self.preprocess_layout.addLayout(outlier_layout)
-            self.missing_outlier_ok = QPushButton("OK")
-            self.preprocess_layout.addStretch(1)
-            self.preprocess_layout.addWidget(self.missing_outlier_ok)
-            self.preprocess_layout.addStretch(2)
+        outlier_cols = []
 
-            missing_cols = []
-            for col in self.selected_data.columns:
-                if self.selected_data[col].isnull().any():
-                    missing_cols.append(col)
+        for col in self.step2_data.select_dtypes(include=['float', 'int']):
+            lower, upper = self.outlier_bound(col)
+            if ((self.step2_data[col] < lower) | (self.step2_data[col] > upper)).any():
+                outlier_cols.append(col)
+                self.outlier_found = 1
 
-            print(f"Find col have missing value {str(missing_cols)}")
+        print(f"Find col have outlier value {str(outlier_cols)}")
 
-            if len(missing_cols) > 0:
-                self.missing_found = 1
+        if self.outlier_found:
+            outlier_layout.addWidget(QLabel('select outlier value Delete or Replace'))
+            select_outlier_value = QHBoxLayout()
+            self.outlier_val_delete = QCheckBox("Delete")
+            self.outlier_val_replace = QCheckBox("Replcae")
 
-            if self.missing_found:
-                missing_layout.addWidget(QLabel('Select missing value Delete or Replace'))
-                select_missing_value = QHBoxLayout()
-                self.missing_val_delete = QCheckBox("Delete")
-                self.missing_val_replace = QCheckBox("Replace")
+            select_outlier_value.addWidget(self.outlier_val_delete)
+            select_outlier_value.addWidget(self.outlier_val_replace)
 
-                select_missing_value.addWidget(self.missing_val_delete)
-                select_missing_value.addWidget(self.missing_val_replace)
+            self.outlier_val_delete.toggled.connect(lambda: self.outlier_val_replace.setChecked(False))
+            self.outlier_val_replace.toggled.connect(lambda: self.outlier_val_delete.setChecked(False))
+            outlier_layout.addLayout(select_outlier_value)
 
-                self.missing_val_delete.toggled.connect(lambda: self.missing_val_replace.setChecked(False))
-                self.missing_val_replace.toggled.connect(lambda: self.missing_val_delete.setChecked(False))
-                missing_layout.addLayout(select_missing_value)
+        else:
+            outlier_layout.addWidget(QLabel('Not found outlier values'))
 
-            else:
-                missing_layout.addWidget(QLabel('Not found missing values'))
-
-            outlier_cols = []
-
-            for col in self.selected_data.select_dtypes(include=['float', 'int']):
-                lower, upper = self.outlier_bound(col)
-                if ((self.selected_data[col] < lower) | (self.selected_data[col] > upper)).any():
-                    outlier_cols.append(col)
-                    self.outlier_found = 1
-
-            print(f"Find col have outlier value {str(outlier_cols)}")
-
-            if self.outlier_found:
-                outlier_layout.addWidget(QLabel('select outlier value Delete or Replace'))
-                select_outlier_value = QHBoxLayout()
-                self.outlier_val_delete = QCheckBox("Delete")
-                self.outlier_val_replace = QCheckBox("Replcae")
-
-                select_outlier_value.addWidget(self.outlier_val_delete)
-                select_outlier_value.addWidget(self.outlier_val_replace)
-
-                self.outlier_val_delete.toggled.connect(lambda: self.outlier_val_replace.setChecked(False))
-                self.outlier_val_replace.toggled.connect(lambda: self.outlier_val_delete.setChecked(False))
-                outlier_layout.addLayout(select_outlier_value)
-
-            else:
-                outlier_layout.addWidget(QLabel('Not found outlier values'))
-
-            self.missing_outlier_ok.clicked.connect(self.missing_outlier_preprocess)
+        self.missing_outlier_ok.clicked.connect(self.missing_outlier_preprocess)
 
     def missing_outlier_preprocess(self):
         error = 0
+
         if self.missing_found:
             if self.missing_val_delete.isChecked():
-                self.selected_data.dropna(inplace=True)
+                self.self.step2_data.dropna(inplace=True)
 
             elif self.missing_val_replace.isChecked():
-                missing_indices = self.selected_data[self.selected_data.isnull().any(axis=1)].index.tolist()
-                nums = self.selected_data.select_dtypes(include=['int', 'float']).columns.tolist()
-                objs = self.selected_data.select_dtypes(include=['object']).columns.tolist()
+                missing_indices = self.step2_data[self.step2_data.isnull().any(axis=1)].index.tolist()
+                nums = self.step2_data.select_dtypes(include=['int', 'float']).columns.tolist()
+                objs = self.step2_data.select_dtypes(include=['object']).columns.tolist()
 
                 for num in nums:
-                    self.selected_data[num] = self.selected_data[num].fillna(self.selected_data[num].mean())
+                    self.step2_data[num] = self.step2_data[num].fillna(self.step2_data[num].mean())
                 for obj in objs:
-                    self.selected_data[obj] = self.selected_data[obj].fillna(self.selected_data[obj].mode())
+                    self.step2_data[obj] = self.step2_data[obj].fillna(self.step2_data[obj].mode())
                 
-                print(f"\n측치 대체 후 해당 행\n{self.selected_data[missing_indices]}")
+                print(f"\n측치 대체 후 해당 행\n{self.step2_data[missing_indices]}")
 
             else:
                 error = 1
 
         if self.outlier_found:
             if self.outlier_val_delete.isChecked():
-                for col in self.selected_data.select_dtypes(include=['float', 'int']).columns:
+                for col in self.step2_data.select_dtypes(include=['float', 'int']).columns:
                     lower, upper = self.outlier_bound(col)
-                    self.selected_data = self.selected_data[(self.selected_data[col] >= lower) & (self.selected_data[col] <= upper)]
+                    self.step2_data = self.step2_data[(self.step2_data[col] >= lower) & (self.step2_data[col] <= upper)]
 
             elif self.outlier_val_replace.isChecked():
-                 for col in self.selected_data.select_dtypes(include=['float', 'int']).columns:
+                 for col in self.step2_data.select_dtypes(include=['float', 'int']).columns:
                     lower, upper = self.outlier_bound(col)
-                    col_min = self.selected_data[col].min()
-                    col_max = self.selected_data[col].max()
+                    col_min = self.step2_data[col].min()
+                    col_max = self.step2_data[col].max()
 
-                    self.selected_data[col] = self.selected_data[col].apply(
+                    self.step2_data[col] = self.step2_data[col].apply(
                         lambda x: col_min if x < lower else (col_max if x > upper else x)
                     )
             else:
@@ -349,14 +369,16 @@ class ML_app(QMainWindow):
 
         else:
             self.clear_layout(self.preprocess_layout)
-            print(f"Selected Data Info\n{str(self.selected_data.info())}")
-            print(f"Selected Data Head\n{self.selected_data.head()}")
+            print(f"Selected Data Info\n{str(self.step2_data.info())}")
+            print(f"Selected Data Head\n{self.step2_data.head()}")
             self.preprocess_layout.addWidget(QLabel("Go Next Step"))
             QMessageBox.about(self, "complete", "missing val & outlier val preprocess complete")
 
+            self.step3.setEnabled(True)
+
     def outlier_bound(self, col):
-        Q1 = self.selected_data[col].quantile(0.25)
-        Q3 = self.selected_data[col].quantile(0.75)
+        Q1 = self.step2_data[col].quantile(0.25)
+        Q3 = self.step2_data[col].quantile(0.75)
         IQR = Q3 - Q1
         lower = Q1 - 1.5 * IQR
         upper = Q3 + 1.5 * IQR
@@ -367,6 +389,10 @@ class ML_app(QMainWindow):
         self.clear_layout(self.preprocess_layout)
         print("\n=================STEP3=================")
 
+        self.step4.setEnabled(False)
+
+        self.step3_data = self.step2_data.copy()
+
         self.preprocess_layout.addWidget(QLabel("train-test-split ratio"))
         self.train_test_split_input = QSpinBox()
         self.preprocess_layout.addWidget(self.train_test_split_input)
@@ -374,8 +400,9 @@ class ML_app(QMainWindow):
         self.train_test_split_input.setMinimum(0)
         self.train_test_split_input.setValue(70)
 
-        self.X = self.selected_data.drop(columns=[self.target_variable])
-        self.y = self.selected_data[self.target_variable]
+        self.X = self.step3_data.drop(columns=[self.target_variable])
+        self.y = self.step3_data[self.target_variable]
+
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             self.X, self.y, test_size=float(self.train_test_split_input.value()/100), random_state=42, stratify=self.y
         )
@@ -498,7 +525,7 @@ class ML_app(QMainWindow):
         self.label_encoder = None
         # 이미 엔코딩이 되어있는 경우를 위해 y_train이 object type이면 엔코딩하기
         if self.y_train.dtype == 'object':
-            print(f"encoding(Label Encoding) - y_train dataset : {self.y_train.columns.tolist()}")
+            print(f"encoding(Label Encoding) - y_train dataset : {self.y_train.name}")
             self.label_encoder = LabelEncoder()
             self.y_train = self.label_encoder.fit_transform(self.y_train)
             self.y_train = pd.Series(self.y_train)
@@ -512,6 +539,8 @@ class ML_app(QMainWindow):
             self.clear_layout(self.preprocess_layout)
             self.preprocess_layout.addWidget(QLabel("Go Next Step"))
             QMessageBox.about(self, "complete", "scaling & encoding complete")
+
+            self.step4.setEnabled(True)
 
     def train_test_split_(self):
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
