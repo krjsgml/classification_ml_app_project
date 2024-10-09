@@ -16,7 +16,6 @@ from imblearn.over_sampling import RandomOverSampler
 from collections import Counter
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import seaborn as sns
-from lazyloading import LazyLoadingTable
 
 
 class ML_app(QMainWindow):
@@ -228,12 +227,12 @@ class ML_app(QMainWindow):
 
         def display_describe(layout, df):
             table = QTableWidget()
-            table.setRowCount(len(df))  # 행 수 설정
-            table.setColumnCount(len(df.columns) + 1)  # 열 수 설정 (+1은 인덱스 열을 위해)
+            table.setRowCount(len(df))
+            table.setColumnCount(len(df.columns) + 1)
 
             # 인덱스 열 헤더를 추가 (통계 값 이름: mean, max, min 등)
-            headers = [''] + list(df.columns)  # 빈 헤더로 첫 번째 열에 인덱스를 추가할 공간 확보
-            table.setHorizontalHeaderLabels(headers)  # 열 헤더 설정
+            headers = [''] + list(df.columns)
+            table.setHorizontalHeaderLabels(headers)
 
             # 데이터 삽입
             for row in range(len(df)):
@@ -245,16 +244,21 @@ class ML_app(QMainWindow):
 
             layout.addWidget(table)
 
-        def display_value_counts(layout, df, col, chunk_size=100):
+        def display_value_counts(layout, df, col):
             if col:
                 self.clear_layout(layout)
 
-                data = df[col].value_counts()
+                df = df[col].value_counts().reset_index()
+                table = QTableWidget()
+                table.setRowCount(len(df))
+                table.setColumnCount(len(df.columns))
+                table.setHorizontalHeaderLabels(df.columns)
 
-                # LazyLoadingTable을 사용하여 데이터를 점진적으로 로드
-                table = LazyLoadingTable(self, data=data.reset_index(), chunk_size=chunk_size)
+                # 데이터 삽입
+                for row in range(len(df)):
+                    for col in range(len(df.columns)):
+                        table.setItem(row, col, QTableWidgetItem(str(df.iloc[row, col])))
 
-                # 레이아웃에 테이블 추가
                 layout.addWidget(table)
 
         def select_value_counts(layout, df):
