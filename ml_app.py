@@ -13,9 +13,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler, MinMaxScaler
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
-from collections import Counter
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import seaborn as sns
+import threading
 
 
 class ML_app(QMainWindow):
@@ -417,18 +417,20 @@ class ML_app(QMainWindow):
         if self.outlier_found:
             if self.outlier_val_delete.isChecked():
                 for col in self.step2_data.select_dtypes(include=['float', 'int']).columns:
-                    lower, upper = self.outlier_bound(col)
-                    self.step2_data = self.step2_data[(self.step2_data[col] >= lower) & (self.step2_data[col] <= upper)]
+                    if col != self.target_variable:
+                        lower, upper = self.outlier_bound(col)
+                        self.step2_data = self.step2_data[(self.step2_data[col] >= lower) & (self.step2_data[col] <= upper)]
 
             elif self.outlier_val_replace.isChecked():
                  for col in self.step2_data.select_dtypes(include=['float', 'int']).columns:
-                    lower, upper = self.outlier_bound(col)
-                    col_min = self.step2_data[col].min()
-                    col_max = self.step2_data[col].max()
+                    if col != self.target_variable:
+                        lower, upper = self.outlier_bound(col)
+                        col_min = self.step2_data[col].min()
+                        col_max = self.step2_data[col].max()
 
-                    self.step2_data[col] = self.step2_data[col].apply(
-                        lambda x: col_min if x < lower else (col_max if x > upper else x)
-                    )
+                        self.step2_data[col] = self.step2_data[col].apply(
+                            lambda x: col_min if x < lower else (col_max if x > upper else x)
+                        )
         
         if error == 1:
             QMessageBox.about(self, "erorr", "select please")
@@ -436,6 +438,7 @@ class ML_app(QMainWindow):
         else:
             self.clear_layout(self.preprocess_layout)
             print(f"Selected Data Head\n{self.step2_data.head()}")
+            print(f"\ny_value_counts\n{self.step2_data[self.target_variable].value_counts()}")
             self.preprocess_layout.addWidget(QLabel("Go Next Step"))
             QMessageBox.about(self, "complete", "missing val & outlier val preprocess complete")
 
@@ -768,13 +771,49 @@ class ML_app(QMainWindow):
         self.model = RandomForestClassifier(max_depth=self.rf_max_depth.value(), n_estimators=self.n_estimators.value())
 
     def train(self):
+        # 팝업 창 띄우기
+        self.popup = QDialog(self)
+        self.popup.setWindowTitle("Training")
+        layout = QVBoxLayout()
+        self.label = QLabel("훈련이 끝나면 OK 버튼을 눌러주세요.")
+        layout.addWidget(self.label)
+
+        self.ok_button = QPushButton("OK")
+        self.ok_button.setEnabled(False)
+        self.ok_button.clicked.connect(self.on_ok_clicked)
+        layout.addWidget(self.ok_button)
+
+        self.popup.setLayout(layout)
+
+        self.training_thread = threading.Thread(target=self.run_training)
+        self.training_thread.start()
+
+        # 팝업 창 실행
+        self.popup.exec_()
+
+    def run_training(self):
+        print("=======Modeling Start========")
+        # Decision Tree 모델 학습
         self.model.fit(self.X_train, self.y_train)
+        # 훈련 완료 후 OK 버튼 활성화
+        self.ok_button.setEnabled(True)
+
+    def on_ok_clicked(self):
+        self.popup.accept()  # 팝업 창 닫기
+        self.result()
+        
+    def result(self):
+        print("=========RESULT==========")
         y_pred = self.model.predict(self.X_test)
         if self.label_encoder is not None:
             y_pred = self.label_encoder.inverse_transform(y_pred)
         cr = classification_report(self.y_test, y_pred)
         cm = confusion_matrix(self.y_test, y_pred)
         accuracy = accuracy_score(self.y_test, y_pred)
+
+        print(f"cr : {cr}")
+        print(f"cm : {cm}")
+        print(f"acc : {accuracy}")
 
         QMessageBox.about(self, "accuracy score", str(accuracy))
 
