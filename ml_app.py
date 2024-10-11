@@ -297,14 +297,14 @@ class ML_app(QMainWindow):
             select_col_layout = QVBoxLayout()
             show_value_counts_layout = QHBoxLayout()
 
-            select_col_value_counts = QComboBox()
-            select_col_layout.addWidget(select_col_value_counts)
+            self.select_col_value_counts = QComboBox()
+            select_col_layout.addWidget(self.select_col_value_counts)
 
             layout.addLayout(select_col_layout)
             layout.addLayout(show_value_counts_layout)
 
-            select_col_value_counts.addItems(df.columns)
-            select_col_value_counts.currentTextChanged.connect(lambda col : display_value_counts(show_value_counts_layout, df, col))
+            self.select_col_value_counts.addItems(df.columns)
+            self.select_col_value_counts.currentTextChanged.connect(lambda col : display_value_counts(show_value_counts_layout, df, col))
 
     def show_graph(self):
         # Qcombobox에서 선택한 변수의 그래프를 출력
@@ -330,10 +330,12 @@ class ML_app(QMainWindow):
             target_col_index = self.target_variable_selection.findText(variable)
             graph_col_index = self.graph_variable_selection.findText(variable)
             drop_col_index = self.drop_variable_selection.findText(variable)
+            value_counts_col_index = self.select_col_value_counts.findText(variable)
 
             self.target_variable_selection.removeItem(target_col_index)
             self.graph_variable_selection.removeItem(graph_col_index)
             self.drop_variable_selection.removeItem(drop_col_index)
+            self.select_col_value_counts.removeItem(value_counts_col_index)
             
             QMessageBox.about(self, "Delete Variable", f"drop {variable}")
 
