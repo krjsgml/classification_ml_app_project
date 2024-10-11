@@ -187,12 +187,26 @@ class ML_app(QMainWindow):
         select_drop_variable_layout.addWidget(drop_btn)
         drop_btn.clicked.connect(self.drop_ok)
 
+        # 수치형 자료에서 엔코딩 되어있는 변수 추출
+        self.exclude_encoding_cols = []
+        self.saved_checkbox_states = []
+        self.suspicious_checkboxes = []
+        self.dialog = None
+
+        suspicious_encoding_layout = QHBoxLayout()
+        suspicious_encoding_layout.addWidget(QLabel("Select the variables suspected of encoding"))
+        self.suspicious_encoding_btn = QPushButton("Check")
+        self.suspicious_encoding_btn.setEnabled(False)
+        suspicious_encoding_layout.addWidget(self.suspicious_encoding_btn)
+        self.suspicious_encoding_btn.clicked.connect(self.open_suspicious_encoding_dialog)
+
         EDA_layout.addLayout(EDA_menu_layout, 1)
         EDA_layout.addLayout(select_target_variable_layout, 1)
         EDA_layout.addLayout(select_show_graph_variable_layout, 1)
         EDA_layout.addLayout(select_drop_variable_layout, 1)
+        EDA_layout.addLayout(suspicious_encoding_layout, 1)
         EDA_layout.addStretch(1)
-        EDA_layout.addLayout(EDA_show_layout, 5)
+        EDA_layout.addLayout(EDA_show_layout, 4)
 
         self.preprocess_layout.addLayout(EDA_layout)
         self.preprocess_layout.addStretch(3)
@@ -330,9 +344,80 @@ class ML_app(QMainWindow):
             print(f"Target Variable : {text}")
             self.target_variable = text
 
-            # 다음 단계 (step2) 이동 가능
-            self.step2.setEnabled(True)
+            # 엔코딩된 변수를 선택하게 하기
+            self.suspicious_encoding_btn.setEnabled(True)
+            
+    def open_suspicious_encoding_dialog(self):
+        self.dialog = QDialog(self)
+        self.dialog.setWindowTitle("원-핫/라벨 엔코딩 의심 변수 선택")
+        self.dialog.accepted.connect(lambda: self.suspicious_checkboxes.clear())
+        self.dialog.rejected.connect(lambda: self.suspicious_checkboxes.clear())
 
+        layout = QVBoxLayout()
+        self.dialog.setLayout(layout)
+
+        layout.addWidget(QLabel("의심되는 수치형 변수 선택: "))
+
+        scroll_area = QScrollArea(self.dialog)
+        scroll_area.setWidgetResizable(True)
+
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+
+        features = self.step1_data.drop(columns=[self.target_variable])
+        num_features = features.select_dtypes(include=['int', 'float']).columns.tolist()
+        
+        for col in num_features:
+            if self.is_onehot(col) or self.is_label(col):
+                checkbox = QCheckBox(col)
+                self.suspicious_checkboxes.append(checkbox)
+
+                # 체크박스 상태 복원
+                if col in self.get_suspicious_checkbox_states():  # 메서드를 호출
+                    checkbox.setChecked(True)
+
+                scroll_layout.addWidget(checkbox)
+
+        scroll_area.setWidget(scroll_content)
+        layout.addWidget(scroll_area)
+
+        # 확인 버튼
+        check_ok_btn = QPushButton("OK")
+        check_ok_btn.clicked.connect(self.apply_selected_suspicious_vars)
+        layout.addWidget(check_ok_btn)
+
+        self.dialog.exec_()
+
+    def apply_selected_suspicious_vars(self):
+        self.exclude_encoding_cols.clear()
+        for checkbox in self.suspicious_checkboxes:
+            if checkbox.isChecked():
+                self.exclude_encoding_cols.append(checkbox.text())
+
+                if checkbox.text() not in self.saved_checkbox_states:
+                    self.saved_checkbox_states.append(checkbox.text())
+            
+            else:
+                if checkbox.text() in self.saved_checkbox_states:
+                    self.saved_checkbox_states.remove(checkbox.text())
+
+        self.dialog.accept()
+        # 다음 step 이동 가능
+        self.step2.setEnabled(True)
+
+    def is_onehot(self, col):
+        nunique_vals = self.step1_data[col].nunique()
+        unique_vals = self.step1_data[col].unique()
+        return (nunique_vals == 2) and sorted(list(unique_vals)) == [0, 1]
+    
+    def is_label(self, col):
+        unique_vals = sorted(float(val) for val in self.step1_data[col].unique())
+        unique_vals_1 = sorted(float(val-1) for val in self.step1_data[col].unique())
+        return (unique_vals == list(map(float, range(len(unique_vals))))) or ((unique_vals_1 == list(map(float, range(len(unique_vals)))))) 
+    
+    def get_suspicious_checkbox_states(self):
+        # 현재 체크박스 상태를 반환하는 메서드
+        return self.saved_checkbox_states
 
     def missing_outlier_value(self):
         self.clear_layout(self.preprocess_layout)
@@ -356,6 +441,7 @@ class ML_app(QMainWindow):
         self.preprocess_layout.addLayout(outlier_layout)
 
         self.missing_outlier_ok = QPushButton("OK")
+        self.missing_outlier_ok.clicked.connect(self.missing_outlier_preprocess)
 
         self.preprocess_layout.addStretch(1)
         self.preprocess_layout.addWidget(self.missing_outlier_ok)
@@ -371,8 +457,7 @@ class ML_app(QMainWindow):
         # 결측치 발견
         if len(missing_cols) > 0:
             self.missing_found = 1
-
-        if self.missing_found:
+            
             # 삭제 혹은 대체 선택
             missing_layout.addWidget(QLabel('Select missing value Delete or Replace'))
             select_missing_value = QHBoxLayout()
@@ -394,12 +479,13 @@ class ML_app(QMainWindow):
             lower, upper = self.outlier_bound(col)
             if ((self.step2_data[col] < lower) | (self.step2_data[col] > upper)).any():
                 outlier_cols.append(col)
-                self.outlier_found = 1
 
         print(f"Find col have outlier value {str(outlier_cols)}")
 
         # 이상치 발견
-        if self.outlier_found:
+        if len(outlier_cols) > 0:
+            self.outlier_found = 1
+
             # 삭제 혹은 대체 선택
             outlier_layout.addWidget(QLabel('select outlier value Delete or Replace'))
             select_outlier_value = QHBoxLayout()
@@ -415,8 +501,6 @@ class ML_app(QMainWindow):
 
         else:
             outlier_layout.addWidget(QLabel('Not found outlier values'))
-
-        self.missing_outlier_ok.clicked.connect(self.missing_outlier_preprocess)
 
     def missing_outlier_preprocess(self):
         # 결측치는 무조건 처리시켜줘야하지만, 이상치는 처리를 안시켜줘도 됨.
@@ -517,6 +601,7 @@ class ML_app(QMainWindow):
         self.train_test_split_input.setMinimum(0)
         self.train_test_split_input.setValue(70)
 
+        # X, y 분리 및 train_test_split 
         self.X = self.step3_data.drop(columns=[self.target_variable])
         self.y = self.step3_data[self.target_variable]
 
@@ -538,6 +623,13 @@ class ML_app(QMainWindow):
         self.preprocess_layout.addLayout(data_scale_layout)
         self.nums_X_train = list(self.X_train.select_dtypes(include=['float', 'int']).columns)
         self.nums_X_test = list(self.X_test.select_dtypes(include=['float', 'int']).columns)
+        
+        # exclude cols (already encoding cols)
+        for cols in self.exclude_encoding_cols:
+            self.nums_X_train.remove(cols)
+            self.nums_X_test.remove(cols)
+
+        print(self.nums_X_train)
 
         # data encoding part
         data_encoding_layout = QHBoxLayout()
@@ -620,6 +712,7 @@ class ML_app(QMainWindow):
             else:
                 error = 1
 
+        # 엔코딩이 안되는 col은 데이터셋에서 삭제
         if len(self.objs_X_train) > 0:
             if self.label_encoding.isChecked():
                 # 라벨 엔코딩 선택 시
@@ -640,17 +733,23 @@ class ML_app(QMainWindow):
             elif self.one_hot_encoding.isChecked():
                 # 원-핫 엔코딩 선택 시
                 print(f"encoding(One-Hot Encoding) : {self.objs_X_train}")
-                encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-                for col in self.objs_X_train:
-                    transformed_train = encoder.fit_transform(self.X_train[[col]])
-                    encoded_cols = [f"{col}_{category}" for category in encoder.categories_[0]]
-                    transformed_train_df = pd.DataFrame(transformed_train, columns=encoded_cols, index=self.X_train.index)
+                encoder = OneHotEncoder(sparse_output=False)
+                try:
+                    for col in self.objs_X_train:
+                        transformed_train = encoder.fit_transform(self.X_train[[col]])
+                        encoded_cols = [f"{col}_{category}" for category in encoder.categories_[0]]
+                        transformed_train_df = pd.DataFrame(transformed_train, columns=encoded_cols, index=self.X_train.index)
 
-                    transformed_test = encoder.transform(self.X_test[[col]])
-                    transformed_test_df = pd.DataFrame(transformed_test, columns=encoded_cols, index=self.X_test.index)
+                        transformed_test = encoder.transform(self.X_test[[col]])
+                        transformed_test_df = pd.DataFrame(transformed_test, columns=encoded_cols, index=self.X_test.index)
 
-                    self.X_train = pd.concat([self.X_train, transformed_train_df], axis=1).drop(columns=[col])
-                    self.X_test = pd.concat([self.X_test, transformed_test_df], axis=1).drop(columns=[col])
+                        self.X_train = pd.concat([self.X_train, transformed_train_df], axis=1).drop(columns=[col])
+                        self.X_test = pd.concat([self.X_test, transformed_test_df], axis=1).drop(columns=[col])
+
+                except:
+                        self.X_train = self.X_train.drop(columns=[col])
+                        self.X_test = self.X_test.drop(columns=[col])
+                        QMessageBox.about(self, "error", f"drop {col}")
 
                 print(f"\nAfter Encoding X_train head\n{self.X_train.head()}")
                 print(f"\nAfter Encoding X_test head\n{self.X_test.head()}")
