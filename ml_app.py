@@ -229,82 +229,82 @@ class ML_app(QMainWindow):
 
         # info 버튼 클릭 시 info() 메서드를 이용해 앱에 출력
         info.clicked.connect(lambda : self.clear_layout(EDA_show_layout))
-        info.clicked.connect(lambda : display_info(EDA_show_layout, data_info))
+        info.clicked.connect(lambda : self.display_info(EDA_show_layout, data_info))
 
         # describe 버튼 클릭 시 describe() 메서드를 이용해 앱에 출력
         describe.clicked.connect(lambda : self.clear_layout(EDA_show_layout))
-        describe.clicked.connect(lambda : display_describe(EDA_show_layout, data_describe))
+        describe.clicked.connect(lambda : self.display_describe(EDA_show_layout, data_describe))
 
         # value_counts 버튼 클릭 시 value_counts() 메서드를 이용해 앱에 출력
         value_counts.clicked.connect(lambda : self.clear_layout(EDA_show_layout))
-        value_counts.clicked.connect(lambda : select_value_counts(EDA_show_layout, self.step1_data))
+        value_counts.clicked.connect(lambda : self.select_value_counts(EDA_show_layout, self.step1_data))
 
-        def display_info(layout, info):
-            # info 버튼을 클릭 시 고정폭 폰트를 이용해 가독성 향상
-            text_edit = QPlainTextEdit()
-            text_edit.setPlainText(info)
-            text_edit.setReadOnly(True)
-            
-            font = QFont("Courier New")
-            font.setStyleHint(QFont.Monospace)
-            text_edit.setFont(font)
-            
-            layout.addWidget(text_edit)
+    def display_info(self, layout, info):
+        # info 버튼을 클릭 시 고정폭 폰트를 이용해 가독성 향상
+        text_edit = QPlainTextEdit()
+        text_edit.setPlainText(info)
+        text_edit.setReadOnly(True)
+        
+        font = QFont("Courier New")
+        font.setStyleHint(QFont.Monospace)
+        text_edit.setFont(font)
+        
+        layout.addWidget(text_edit)
 
-        def display_describe(layout, df):
-            # QTableWidget을 사용해 가독성 향상
+    def display_describe(self, layout, df):
+        # QTableWidget을 사용해 가독성 향상
+        table = QTableWidget()
+        table.setRowCount(len(df))
+        table.setColumnCount(len(df.columns) + 1)
+
+        # 인덱스 열 헤더를 추가 (통계 값 이름: mean, max, min 등)
+        headers = [''] + list(df.columns)
+        table.setHorizontalHeaderLabels(headers)
+
+        # 데이터 삽입
+        for row in range(len(df)):
+            # 인덱스 값을 첫 번째 열에 삽입
+            table.setItem(row, 0, QTableWidgetItem(str(df.index[row])))
+
+            for col in range(len(df.columns)):
+                table.setItem(row, col + 1, QTableWidgetItem(str(df.iloc[row, col])))
+
+        layout.addWidget(table)
+
+    def display_value_counts(self, layout, df, col):
+        # QTableWidget을 사용해 가독성 향상
+        # display_describe()와 구조는 똑같음. (다만, describe에서는 앞에 통계 값의 이름들을 추가해야하므로 추가 과정이 필요하였음.)
+        # 추후에 display_describe()와 display_value_counts()를 하나의 메서드로 구현할 예정
+        if col:
+            self.clear_layout(layout)
+
+            df = df[col].value_counts().reset_index()   # df[col].value_counts()는 시리즈이므로 데이터프레임 형식으로 맞춰줘서 Table로
             table = QTableWidget()
             table.setRowCount(len(df))
-            table.setColumnCount(len(df.columns) + 1)
-
-            # 인덱스 열 헤더를 추가 (통계 값 이름: mean, max, min 등)
-            headers = [''] + list(df.columns)
-            table.setHorizontalHeaderLabels(headers)
+            table.setColumnCount(len(df.columns))
+            table.setHorizontalHeaderLabels(df.columns)
 
             # 데이터 삽입
             for row in range(len(df)):
-                # 인덱스 값을 첫 번째 열에 삽입
-                table.setItem(row, 0, QTableWidgetItem(str(df.index[row])))
-
                 for col in range(len(df.columns)):
-                    table.setItem(row, col + 1, QTableWidgetItem(str(df.iloc[row, col])))
+                    table.setItem(row, col, QTableWidgetItem(str(df.iloc[row, col])))
 
             layout.addWidget(table)
 
-        def display_value_counts(layout, df, col):
-            # QTableWidget을 사용해 가독성 향상
-            # display_describe()와 구조는 똑같음. (다만, describe에서는 앞에 통계 값의 이름들을 추가해야하므로 추가 과정이 필요하였음.)
-            # 추후에 display_describe()와 display_value_counts()를 하나의 메서드로 구현할 예정
-            if col:
-                self.clear_layout(layout)
+    def select_value_counts(self, layout, df):
+        # 각각의 변수들 하나하나 value_counts()를 확인하고자 QCombox를 만들어 변수를 선택하면
+        # display_value_counts()가 호출되어 선택한 변수의 value_counts()를 확인할 수 있음.
+        select_col_layout = QVBoxLayout()
+        show_value_counts_layout = QHBoxLayout()
 
-                df = df[col].value_counts().reset_index()   # df[col].value_counts()는 시리즈이므로 데이터프레임 형식으로 맞춰줘서 Table로
-                table = QTableWidget()
-                table.setRowCount(len(df))
-                table.setColumnCount(len(df.columns))
-                table.setHorizontalHeaderLabels(df.columns)
+        self.select_col_value_counts = QComboBox()
+        select_col_layout.addWidget(self.select_col_value_counts)
 
-                # 데이터 삽입
-                for row in range(len(df)):
-                    for col in range(len(df.columns)):
-                        table.setItem(row, col, QTableWidgetItem(str(df.iloc[row, col])))
+        layout.addLayout(select_col_layout)
+        layout.addLayout(show_value_counts_layout)
 
-                layout.addWidget(table)
-
-        def select_value_counts(layout, df):
-            # 각각의 변수들 하나하나 value_counts()를 확인하고자 QCombox를 만들어 변수를 선택하면
-            # display_value_counts()가 호출되어 선택한 변수의 value_counts()를 확인할 수 있음.
-            select_col_layout = QVBoxLayout()
-            show_value_counts_layout = QHBoxLayout()
-
-            self.select_col_value_counts = QComboBox()
-            select_col_layout.addWidget(self.select_col_value_counts)
-
-            layout.addLayout(select_col_layout)
-            layout.addLayout(show_value_counts_layout)
-
-            self.select_col_value_counts.addItems(df.columns)
-            self.select_col_value_counts.currentTextChanged.connect(lambda col : display_value_counts(show_value_counts_layout, df, col))
+        self.select_col_value_counts.addItems(df.columns)
+        self.select_col_value_counts.currentTextChanged.connect(lambda col : self.display_value_counts(show_value_counts_layout, df, col))
 
     def show_graph(self):
         # Qcombobox에서 선택한 변수의 그래프를 출력
