@@ -140,6 +140,11 @@ class ML_app(QMainWindow):
         # 각 step별 개별적인 데이터셋이 필요
         self.step1_data = self.selected_data.copy()
 
+        self.target_variable_selection = None
+        self.graph_variable_selection = None
+        self.drop_variable_selection = None
+        self.select_col_value_counts = None
+
         self.step2.setEnabled(False)
         self.step3.setEnabled(False)
         self.step4.setEnabled(False)
@@ -330,12 +335,14 @@ class ML_app(QMainWindow):
             target_col_index = self.target_variable_selection.findText(variable)
             graph_col_index = self.graph_variable_selection.findText(variable)
             drop_col_index = self.drop_variable_selection.findText(variable)
-            value_counts_col_index = self.select_col_value_counts.findText(variable)
-
+            
             self.target_variable_selection.removeItem(target_col_index)
             self.graph_variable_selection.removeItem(graph_col_index)
             self.drop_variable_selection.removeItem(drop_col_index)
-            self.select_col_value_counts.removeItem(value_counts_col_index)
+
+            if self.select_col_value_counts is not None:
+                value_counts_col_index = self.select_col_value_counts.findText(variable)
+                self.select_col_value_counts.removeItem(value_counts_col_index)
             
             QMessageBox.about(self, "Delete Variable", f"drop {variable}")
 
@@ -366,10 +373,12 @@ class ML_app(QMainWindow):
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
 
+        # feature변수의 수치형 자료 리스트
         features = self.step1_data.drop(columns=[self.target_variable])
         num_features = features.select_dtypes(include=['int', 'float']).columns.tolist()
         
         for col in num_features:
+            # 원핫, 라벨 엔코딩이 의심되는 변수(column) suspicious_checkboxes에 추가하여 체크박스에 추가
             if self.is_onehot(col) or self.is_label(col):
                 checkbox = QCheckBox(col)
                 self.suspicious_checkboxes.append(checkbox)
@@ -391,14 +400,17 @@ class ML_app(QMainWindow):
         self.dialog.exec_()
 
     def apply_selected_suspicious_vars(self):
-        self.exclude_encoding_cols.clear()
+        self.exclude_encoding_cols.clear()  # 중복 없애기 위해서 clear
+
         for checkbox in self.suspicious_checkboxes:
             if checkbox.isChecked():
                 self.exclude_encoding_cols.append(checkbox.text())
 
+                # 체크박스상태저장 리스트에 없다면 추가
                 if checkbox.text() not in self.saved_checkbox_states:
                     self.saved_checkbox_states.append(checkbox.text())
             
+            # 체크박스상태저장 리스트에 있지만 체크가 해제된 경우에 삭제
             else:
                 if checkbox.text() in self.saved_checkbox_states:
                     self.saved_checkbox_states.remove(checkbox.text())
