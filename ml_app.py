@@ -1053,6 +1053,7 @@ class ML_app(QMainWindow):
         class_names = list(self.y_test.unique())    # y_test의 클래스 이름들 class_names에 저장
         plot_confusion_matrix(self.cm, class_names) # 혼동행렬 plot
 
+        # model이 decision tree이면 plot_tree()로 tree를 보여줌
         if isinstance(self.model, DecisionTreeClassifier):
             plt.figure(figsize=(20, 20))
             plot_tree(self.model, filled=True, feature_names=self.X_train.columns, class_names=class_names, rounded=True)
