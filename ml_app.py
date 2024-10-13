@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QPixmap, QFont
 from PyQt5.QtCore import Qt
 from io import StringIO
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -388,6 +388,9 @@ class ML_app(QMainWindow):
                     checkbox.setChecked(True)
 
                 scroll_layout.addWidget(checkbox)
+                
+        if len(self.suspicious_checkboxes) == 0:
+            self.step2.setEnabled(True)
 
         scroll_area.setWidget(scroll_content)
         layout.addWidget(scroll_area)
@@ -1049,6 +1052,12 @@ class ML_app(QMainWindow):
 
         class_names = list(self.y_test.unique())    # y_test의 클래스 이름들 class_names에 저장
         plot_confusion_matrix(self.cm, class_names) # 혼동행렬 plot
+
+        if isinstance(self.model, DecisionTreeClassifier):
+            plt.figure(figsize=(20, 20))
+            plot_tree(self.model, filled=True, feature_names=self.X_train.columns, class_names=class_names, rounded=True)
+            plt.title("Deicision Tree")
+            plt.show()
 
     # layout clear해주는 함수
     def clear_layout(self, layout):
