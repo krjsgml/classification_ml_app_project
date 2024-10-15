@@ -12,7 +12,7 @@
   
 - 클래스 불균형(over, under sampling)
 
-- 모델링(Logistic Regression, Decision Tree, Random Forest)
+- 모델링(Logistic Regression, Decision Tree, Random Forest, DNN)
 
 <h2>[설명]</h2>
 전처리 과정이 4단계로 구성되어있음
@@ -37,9 +37,14 @@
         + Logistic Regression (max_iters: 1 ~ 1000)
         + Decision Tree (Max depth: 1 ~ 1000)
         + Random Forest (Max depth: 1 ~ 1000 / n_estimators: 1 ~ 1000)
+        + DNN (epochs / batch_size / validation data set ratio / callbacks setting)
+            - optimizer : adam / loss = sparse_categorical_crossentropy / metrics = accuracy로 고정되어있음
 
 각 STEP을 순차적으로 해야 함.
 ex. STEP4에서 STEP1로 돌아간다면 처음부터 다시 순차적으로 STEP을 진행해야 함
 
 <h2>[주의사항]</h2>
 트리 계열 모델에서는 숫자의 크고 작음의 영향이 없으므로 X 데이터셋에 라벨엔코딩이 된 변수가 있어도 상관없지만, 다른 몇 가지 모델에서는 민감하므로, 라벨엔코딩을 추천하지 않음.
+<br>
+<h2>[업데이트]</h2>
+matplotlib agg를 사용하므로 plt.show()가 아닌 QDialog로 새로운 창을 띄우고 그 안에서 plt img를 삽입하여 그래프를 보여줌.
