@@ -1319,6 +1319,8 @@ class ML_app(QMainWindow):
         print(f"cm : {self.cm}")
         print(f"acc : {self.accuracy}")
 
+        class_names = list(self.y_test.unique())    # y_test의 클래스 이름들 class_names에 저장
+
         # acc score
         QMessageBox.about(self, "accuracy score", str(self.accuracy))
 
@@ -1396,7 +1398,6 @@ class ML_app(QMainWindow):
     
             dnn_graph_dialog.exec_()
 
-        class_names = list(self.y_test.unique())    # y_test의 클래스 이름들 class_names에 저장
         plot_confusion_matrix(self.cm, class_names) # 혼동행렬 plot
 
     # layout clear해주는 함수
