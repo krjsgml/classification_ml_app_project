@@ -1,6 +1,8 @@
 import sys
 import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QPixmap, QFont
@@ -16,6 +18,17 @@ from imblearn.over_sampling import RandomOverSampler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import seaborn as sns
 import threading
+import tensorflow as tf
+import keras
+from keras._tf_keras.keras import Input
+from keras._tf_keras.keras.models import Sequential
+from keras._tf_keras.keras.layers import Dense, Dropout
+from keras._tf_keras.keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras._tf_keras.keras.utils import plot_model
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import matplotlib
+matplotlib.use('Agg')
 
 
 class ML_app(QMainWindow):
@@ -322,7 +335,23 @@ class ML_app(QMainWindow):
             else:   # 범주형은 bar 그래프
                 self.step1_data[variable].value_counts().plot(kind='bar', alpha=0.7)
 
-            plt.show()
+            plt.savefig("project_1/ml_app/data_preprocessing/variable_graph.png")
+            plt.close()
+
+        variable_graph_dialog = QDialog(self)
+        variable_graph_dialog.setWindowTitle("Variable Graph")
+        variable_graph_dialog.resize(800, 600)
+        variable_layout = QVBoxLayout()
+        variable_graph_dialog.setLayout(variable_layout)
+
+        pixmap = QPixmap("project_1/ml_app/data_preprocessing/variable_graph.png")
+        label = QLabel(variable_graph_dialog)
+        pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        label.setPixmap(pixmap)
+        variable_layout.addWidget(label)
+
+        variable_graph_dialog.exec_()
+
 
     def drop_ok(self):
         # 삭제할 변수를 선택하면 삭제시켜줌.
@@ -849,7 +878,22 @@ class ML_app(QMainWindow):
         plt.title('train - target variable')
         plt.xlabel('Class')
         plt.ylabel('Freq')
-        plt.show()
+        plt.savefig("project_1/ml_app/data_preprocessing/data_imbalance.png")
+        plt.close()
+
+        plot_target_graph_dialog = QDialog(self)
+        plot_target_graph_dialog.setWindowTitle("Data Imbalance")
+        plot_target_graph_dialog.resize(800, 600)
+        target_graph_layout = QVBoxLayout()
+        plot_target_graph_dialog.setLayout(target_graph_layout)
+
+        pixmap = QPixmap("project_1/ml_app/data_preprocessing/data_imbalance.png")
+        label = QLabel(plot_target_graph_dialog)
+        pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        label.setPixmap(pixmap)
+        target_graph_layout.addWidget(label)
+
+        plot_target_graph_dialog.exec_()
 
     def oversampling_process(self):
         # oversampling
@@ -898,11 +942,12 @@ class ML_app(QMainWindow):
         self.model_selection.addItem('Logistic Regression')
         self.model_selection.addItem('Decision Tree')
         self.model_selection.addItem('Random Forest')
+        self.model_selection.addItem("DNN")
 
-        model_selection_layout = QHBoxLayout()
-        model_selection_layout.addWidget(QLabel("Model Selection : "))
-        model_selection_layout.addWidget(self.model_selection)
-        self.model_setup_layout.addLayout(model_selection_layout)
+        self.model_selection_layout = QHBoxLayout()
+        self.model_selection_layout.addWidget(QLabel("Model Selection : "))
+        self.model_selection_layout.addWidget(self.model_selection)
+        self.model_setup_layout.addLayout(self.model_selection_layout)
 
         # 모델이 선택된다면 hyperparamer를 설정할 수 있게 해줌
         self.model_selection.activated[str].connect(self.hyperparameter_setup)
@@ -910,15 +955,21 @@ class ML_app(QMainWindow):
     def hyperparameter_setup(self, model_name):
         # 모델의 하이퍼파라미터를 설정
         self.clear_layout(self.model_hyperparameter_layout)
-        hyperparameter_layout = QVBoxLayout()
+        self.hyperparameter_layout = QVBoxLayout()
         train_layout = QVBoxLayout()
-        self.model_hyperparameter_layout.addLayout(hyperparameter_layout, 7)
+        self.model_hyperparameter_layout.addLayout(self.hyperparameter_layout, 7)
         self.model_hyperparameter_layout.addLayout(train_layout, 3)
 
         train_model = QPushButton("Train Model")
         train_layout.addWidget(train_model)
         train_model.clicked.connect(self.train)
 
+        print(self.model_selection_layout.count())
+        if self.model_selection_layout.count() == 3:
+            dnn_set_btn = self.model_selection_layout.itemAt(self.model_selection_layout.count() - 1)
+            dnn_set_widget = dnn_set_btn.widget()
+            self.model_selection_layout.removeWidget(dnn_set_widget)
+            dnn_set_widget.deleteLater()
         self.model = None
 
         if model_name == 'Logistic Regression':
@@ -930,7 +981,7 @@ class ML_app(QMainWindow):
             max_iters_layout = QHBoxLayout()
             max_iters_layout.addWidget(QLabel("Max Iterations : "))
             max_iters_layout.addWidget(self.max_iters)
-            hyperparameter_layout.addLayout(max_iters_layout)
+            self.hyperparameter_layout.addLayout(max_iters_layout)
 
             self.model = LogisticRegression(max_iter=self.max_iters.value())
             self.max_iters.valueChanged.connect(self.logistic_model_update)
@@ -944,7 +995,7 @@ class ML_app(QMainWindow):
             max_depth_layout = QHBoxLayout()
             max_depth_layout.addWidget(QLabel('Max Depth : '))
             max_depth_layout.addWidget(self.dt_max_depth)
-            hyperparameter_layout.addLayout(max_depth_layout)
+            self.hyperparameter_layout.addLayout(max_depth_layout)
 
             self.model = DecisionTreeClassifier(max_depth=self.dt_max_depth.value())
             # 값을 수정하였으면 다시 model 설정
@@ -959,7 +1010,7 @@ class ML_app(QMainWindow):
             max_depth_layout = QHBoxLayout()
             max_depth_layout.addWidget(QLabel('Max Depth : '))
             max_depth_layout.addWidget(self.rf_max_depth)
-            hyperparameter_layout.addLayout(max_depth_layout)
+            self.hyperparameter_layout.addLayout(max_depth_layout)
 
             # 값을 수정하였으면 다시 model 설정
             self.rf_max_depth.valueChanged.connect(self.random_forest_model_update)
@@ -970,12 +1021,210 @@ class ML_app(QMainWindow):
             n_estimators_layout = QHBoxLayout()
             n_estimators_layout.addWidget(QLabel('n_estimators : '))
             n_estimators_layout.addWidget(self.n_estimators)
-            hyperparameter_layout.addLayout(n_estimators_layout)
+            self.hyperparameter_layout.addLayout(n_estimators_layout)
 
             self.n_estimators.valueChanged.connect(self.random_forest_model_update)
 
             # 값을 수정하였으면 다시 model 설정
             self.model = RandomForestClassifier(max_depth=self.rf_max_depth.value(), n_estimators=self.n_estimators.value())
+
+        elif model_name == "DNN":
+            setting_dnn_model = QPushButton("Setting model")
+            setting_dnn_model.clicked.connect(self.DNN_modeling)
+            self.model_selection_layout.addWidget(setting_dnn_model)
+
+    def DNN_modeling(self):
+        self.dnn_dialog = QDialog(self)
+        self.dnn_dialog.setWindowTitle("Setting DNN Model")
+        self.dnn_layout = QVBoxLayout()
+        self.dnn_dialog.setLayout(self.dnn_layout)
+
+        self.layer_cnt = 1
+
+        self.add_layer()
+
+        self.add_layer_btn = QPushButton("Add Dense Layer")
+        self.add_layer_btn.clicked.connect(self.add_dense_layer)
+        self.dnn_layout.addWidget(self.add_layer_btn)
+
+        # DNN 모델 설정이 끝난 후 Plot Model 버튼 추가
+        self.plot_model_button = QPushButton("Plot Model")
+        self.plot_model_button.clicked.connect(self.plot_dnn_model)
+        self.dnn_layout.addWidget(self.plot_model_button)
+
+        # OK 버튼 추가
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(self.close_dnn_dialog)
+        ok_button.clicked.connect(self.dnn_hyperparameter_setting)
+        self.dnn_layout.addWidget(ok_button)
+
+        self.dnn_dialog.setLayout(self.dnn_layout)
+
+        self.dnn_dialog.exec_()
+
+    def close_dnn_dialog(self):
+        self.dnn_dialog.accept()
+
+    def dnn_hyperparameter_setting(self):
+        dnn_hyperparams_layout = QVBoxLayout()
+        dnn_epochs_layout = QHBoxLayout()
+        dnn_batchsize_layout = QHBoxLayout()
+        dnn_valdata_layout = QHBoxLayout()
+        dnn_callbacks = QHBoxLayout()
+
+        dnn_hyperparams_layout.addLayout(dnn_epochs_layout)
+        dnn_hyperparams_layout.addLayout(dnn_batchsize_layout)
+        dnn_hyperparams_layout.addLayout(dnn_valdata_layout)
+        dnn_hyperparams_layout.addLayout(dnn_callbacks)
+
+        self.hyperparameter_layout.addLayout(dnn_hyperparams_layout)
+
+        self.epochs_set = QSpinBox()
+        self.epochs_set.setMinimum(1)
+        self.epochs_set.setMaximum(1000)
+        dnn_epochs_layout.addWidget(QLabel("epochs : "))
+        dnn_epochs_layout.addWidget(self.epochs_set)
+        self.epochs = self.epochs_set.value()
+        self.epochs_set.valueChanged.connect(self.dnn_hyperparameters_setting)
+        
+        self.batch_size_set = QSpinBox()
+        self.batch_size_set.setMinimum(1)
+        self.batch_size_set.setMaximum(1000)
+        dnn_batchsize_layout.addWidget(QLabel("batch size : "))
+        dnn_batchsize_layout.addWidget(self.batch_size_set)
+        self.batch_size = self.batch_size_set.value()
+        self.batch_size_set.valueChanged.connect(self.dnn_hyperparameters_setting)
+
+        self.validation_size_set = QSpinBox()
+        self.validation_size_set.setMinimum(1)
+        self.validation_size_set.setMaximum(100)
+        dnn_valdata_layout.addWidget(QLabel("validation data ratio : "))
+        dnn_valdata_layout.addWidget(self.validation_size_set)
+        self.validation_size = float(self.validation_size_set.value()/100)
+        self.validation_size_set.valueChanged.connect(self.dnn_hyperparameters_setting)
+
+        self.earlystopping = QCheckBox("early stopping")
+        self.checkpoint = QCheckBox("check point")
+        self.earlystopping.stateChanged.connect(self.dnn_hyperparameters_setting)
+        self.checkpoint.stateChanged.connect(self.dnn_hyperparameters_setting)
+        dnn_callbacks.addWidget(self.earlystopping)
+        dnn_callbacks.addWidget(self.checkpoint)
+
+    def dnn_hyperparameters_setting(self):
+        self.epochs = self.epochs_set.value()
+        self.batch_size = self.batch_size_set.value()
+        self.validation_size = float(self.validation_size_set.value() / 100)
+
+        self.callbacks = []
+        if self.earlystopping.isChecked():
+            early_stopping_callback = EarlyStopping(monitor="val_loss", mode="min", verbose=1, patience=5)
+            self.callbacks.append(early_stopping_callback)
+        if self.checkpoint.isChecked():
+            checkpoint_callback = ModelCheckpoint('project_1/ml_app/dnn_model/best_model.keras', verbose=1,
+                                         monitor="val_loss", mode="min", save_best_only=True)
+            self.callbacks.append(checkpoint_callback)
+
+    def add_layer(self):
+        # 레이어에 대한 레이아웃
+        layer_layout = QHBoxLayout()
+
+        # 레이어 이름 라벨
+        layer_label = QLabel(f'Dense{self.layer_cnt}')
+        layer_layout.addWidget(layer_label)
+
+        # 뉴런 갯수 선택 스핀박스
+        neuron_spinbox = QSpinBox()
+        neuron_spinbox.setRange(1, 1024)  # 뉴런 갯수 설정 범위
+        neuron_spinbox.setValue(64)
+        layer_layout.addWidget(neuron_spinbox)
+
+        # 활성화 함수 선택 콤보박스
+        activation_combo = QComboBox()
+        activation_combo.addItems(['relu', 'sigmoid', 'tanh', 'softmax'])
+        layer_layout.addWidget(activation_combo)
+
+        # Dropout 체크박스
+        dropout_checkbox = QCheckBox('Dropout')
+        dropout_checkbox.stateChanged.connect(lambda state, box=dropout_checkbox: self.add_dropout_option(state, layer_layout))
+        layer_layout.addWidget(dropout_checkbox)
+
+         # 'X' 버튼 추가
+        if self.layer_cnt != 1:
+            remove_button = QPushButton('X')
+            remove_button.clicked.connect(lambda: self.remove_layer(layer_layout))
+            layer_layout.addWidget(remove_button)
+
+        # 레이아웃에 레이어 추가
+        self.dnn_layout.insertLayout(self.dnn_layout.count()-3, layer_layout)
+
+    def remove_layer(self, layer_layout):
+        self.layer_cnt -= 1
+        # 레이아웃을 삭제
+        for i in reversed(range(layer_layout.count())):
+            widget = layer_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.dnn_layout.removeItem(layer_layout)
+    
+    def add_dense_layer(self):
+        self.layer_cnt += 1
+        self.add_layer()
+
+    def add_dropout_option(self, state, layer_layout):
+        # Dropout 비율 설정 스핀박스를 레이아웃에 추가하고, 따로 저장해둠
+        if state == 2:  # 체크박스가 선택되면
+            # Dropout 비율 설정 스핀박스 추가
+            dropout_spinbox = QDoubleSpinBox()
+            dropout_spinbox.setRange(0.0, 0.9)
+            dropout_spinbox.setSingleStep(0.1)
+            dropout_spinbox.setValue(0.5)
+            dropout_spinbox.setObjectName("dropout_spinbox")
+            layer_layout.addWidget(dropout_spinbox)
+        else:
+            # 체크 해제되면 Dropout 비율 제거
+            for i in range(layer_layout.count()):
+                widget = layer_layout.itemAt(i).widget()
+                if isinstance(widget, QDoubleSpinBox):
+                    widget.deleteLater()
+    
+    def plot_dnn_model(self):
+        plot_dialog = QDialog(self)
+        plot_dialog.setWindowTitle("DNN Model Plot")
+        plot_layout = QVBoxLayout()
+        plot_dialog.setLayout(plot_layout)
+    
+        self.model = Sequential()
+        self.model.add(Input(shape=(self.X_train.shape[1],)))
+    
+        for i in range(self.dnn_layout.count() - 3):  # 'Add Dense Layer' 버튼과 'OK' 버튼 제외
+            layer_info = self.dnn_layout.itemAt(i).layout()
+            neurons = layer_info.itemAt(1).widget().value()  # 뉴런 수
+            activation = layer_info.itemAt(2).widget().currentText()  # 활성화 함수
+            self.model.add(Dense(neurons, activation=activation))
+    
+            # Dropout 체크박스 확인
+            dropout_checkbox = layer_info.itemAt(3).widget()
+            if dropout_checkbox.isChecked():  # Dropout이 체크된 경우
+                # ObjectName으로 스핀박스를 찾아서 Dropout 비율 추가
+                for j in range(layer_info.count()):
+                    widget = layer_info.itemAt(j).widget()
+                    if isinstance(widget, QDoubleSpinBox):  # Dropout 비율 설정
+                        dropout_rate = widget.value()
+                        self.model.add(Dropout(dropout_rate))  # Dropout 레이어 추가
+                        break
+                    
+        print(self.model.summary())
+    
+        img_label = QLabel(plot_dialog)
+    
+        plot_model(self.model, to_file='project_1/ml_app/dnn_model/dnn_model.png', show_shapes=True)
+        pixmap = QPixmap("project_1/ml_app/dnn_model/dnn_model.png")
+        pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    
+        img_label.setPixmap(pixmap)
+        plot_layout.addWidget(img_label)
+    
+        plot_dialog.exec_()
 
     def logistic_model_update(self):
         self.model = LogisticRegression(max_iter=self.max_iters.value())
@@ -1010,13 +1259,53 @@ class ML_app(QMainWindow):
 
     def run_training(self):
         print("=======Modeling Start========")
-        self.model.fit(self.X_train, self.y_train)  # 모델 훈련 시작
+        print(self.validation_size, self.epochs, self.batch_size, self.callbacks)
+        X_train, X_val, y_train, y_val = train_test_split(self.X_train, self.y_train, test_size=self.validation_size, stratify=self.y_train)
+        if isinstance(self.model, Sequential):
+            self.model.compile(optimizer="adam",
+                               loss="sparse_categorical_crossentropy",
+                               metrics=['accuracy'])
+            
+            history = self.model.fit(x=X_train, y=y_train, epochs=self.epochs, batch_size=self.batch_size,
+                                     validation_data=(X_val, y_val), verbose=1,
+                                     callbacks=self.callbacks)
+            
+            y_pred = self.model.predict(self.X_test)
+            y_pred = np.argmax(y_pred, axis=1)
+    
+            # DNN Graph Dialog
+            dnn_graph_dialog = QDialog(self)
+            dnn_graph_dialog.setWindowTitle("DNN Graph")
+            dnn_graph_dialog.resize(800, 600)  # Dialog 크기 설정
+            layout = QVBoxLayout()
+            dnn_graph_dialog.setLayout(layout)
+    
+            # 그래프 그리기
+            plt.plot(history.history['accuracy'], label='Train')
+            plt.plot(history.history['val_accuracy'], label='Validation')  # 쌍따옴표 수정
+            plt.title("DNN Model Accuracy")  # 제목 수정
+            plt.xlabel("Epoch")
+            plt.ylabel("Accuracy")
+            plt.legend(loc='best')
+            plt.savefig("project_1/ml_app/dnn_model/dnn_accuracy.png")
+            plt.close()
+    
+            # Pixmap 설정
+            pixmap = QPixmap("project_1/ml_app/dnn_model/dnn_accuracy.png")
+            label = QLabel(dnn_graph_dialog)  # QLabel의 부모를 dnn_graph_dialog로 수정
+            pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            label.setPixmap(pixmap)
+            layout.addWidget(label)
+    
+            dnn_graph_dialog.exec_()
 
-        # 예측값(label-encoding을 하였으면 다시 원래의 모습으로 변환)
-        y_pred = self.model.predict(self.X_test)
+        else:   
+            self.model.fit(self.X_train, self.y_train)  # 모델 훈련 시작
+            y_pred = self.model.predict(self.X_test)
+
         if self.label_encoder is not None:
             y_pred = self.label_encoder.inverse_transform(y_pred)
-    
+        
         # 결괏값 저장
         self.cr = classification_report(self.y_test, y_pred)
         self.cm = confusion_matrix(self.y_test, y_pred)
@@ -1048,7 +1337,22 @@ class ML_app(QMainWindow):
             plt.ylabel('Actual')
             plt.xlabel('Predicted')
             plt.title('Confusion Matrix')
-            plt.show()
+            plt.savefig("project_1/ml_app/model_result/confusion_matrix.png")
+            plt.close()
+            
+            cm_dialog = QDialog(self)
+            cm_dialog.setWindowTitle("Confusion Matrix")
+            cm_dialog.resize(800, 600)
+            cm_layout = QVBoxLayout()
+            cm_dialog.setLayout(cm_layout)
+
+            pixmap = QPixmap("project_1/ml_app/model_result/confusion_matrix.png")
+            label = QLabel(cm_dialog) 
+            pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            label.setPixmap(pixmap)
+            cm_layout.addWidget(label)
+
+            cm_dialog.exec_()
 
         class_names = list(self.y_test.unique())    # y_test의 클래스 이름들 class_names에 저장
         plot_confusion_matrix(self.cm, class_names) # 혼동행렬 plot
@@ -1058,7 +1362,22 @@ class ML_app(QMainWindow):
             plt.figure(figsize=(20, 20))
             plot_tree(self.model, filled=True, feature_names=self.X_train.columns, class_names=class_names, rounded=True)
             plt.title("Deicision Tree")
-            plt.show()
+            plt.savefig("project_1/ml_app/tree_plot/decision_tree.png")
+            plt.close()
+
+            dt_dialog = QDialog(self)
+            dt_dialog.setWindowTitle("Decision Tree")
+            dt_dialog.resize(800 ,600)
+            dt_layout = QVBoxLayout()
+            dt_dialog.setLayout(dt_layout)
+
+            pixmap = QPixmap("project_1/ml_app_tree_plot/decision_tree.png")
+            label = QLabel(dt_dialog)
+            pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            label.setPixmap(pixmap)
+            dt_layout.addWidget(label)
+
+            dt_dialog.exec_()
 
     # layout clear해주는 함수
     def clear_layout(self, layout):
