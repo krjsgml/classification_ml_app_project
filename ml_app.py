@@ -1134,10 +1134,8 @@ class ML_app(QMainWindow):
             self.callbacks.append(checkpoint_callback)
 
     def add_layer(self):
-        # 레이어에 대한 레이아웃
         layer_layout = QHBoxLayout()
 
-        # 레이어 이름 라벨
         layer_label = QLabel(f'Dense{self.layer_cnt}')
         layer_layout.addWidget(layer_label)
 
