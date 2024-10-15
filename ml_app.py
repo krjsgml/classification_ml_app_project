@@ -1144,6 +1144,8 @@ class ML_app(QMainWindow):
         # 뉴런 갯수 선택 스핀박스
         neuron_spinbox = QSpinBox()
         set_neuron_num = len(np.unique(self.y_train))
+        if set_neuron_num == 2:
+            set_neuron_num -= 1
         neuron_spinbox.setRange(1, 1024)  # 뉴런 갯수 설정 범위
         neuron_spinbox.setValue(set_neuron_num)
         layer_layout.addWidget(neuron_spinbox)
@@ -1271,11 +1273,21 @@ class ML_app(QMainWindow):
         print("=======Modeling Start========")
 
         X_train, X_val, y_train, y_val = train_test_split(self.X_train, self.y_train, test_size=self.validation_size, stratify=self.y_train)
+        classes = len(np.unique(y_train))
         if isinstance(self.model, Sequential):
-            self.model.compile(optimizer="adam",
-                               loss="sparse_categorical_crossentropy",
-                               metrics=['accuracy'])
-            
+            # 다중 분류 문제
+            if classes != 2:
+                print("sparse")
+                self.model.compile(optimizer="adam",
+                                   loss="sparse_categorical_crossentropy",
+                                   metrics=['accuracy'])
+            # 이진 분류 문제
+            else:
+                print("binary")
+                self.model.compile(optimizer="adam",
+                                   loss="binary_crossentropy",
+                                   metrics=['accuracy'])
+                
             self.history = self.model.fit(x=X_train, y=y_train, epochs=self.epochs, batch_size=self.batch_size,
                                      validation_data=(X_val, y_val), verbose=1,
                                      callbacks=self.callbacks)
