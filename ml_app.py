@@ -1,5 +1,4 @@
-import sys
-import os
+import sys, os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 from io import StringIO
 import threading
