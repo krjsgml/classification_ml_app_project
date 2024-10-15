@@ -1,32 +1,36 @@
 import sys
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+from io import StringIO
+import threading
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QPixmap, QFont
 from PyQt5.QtCore import Qt
-from io import StringIO
+
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler, MinMaxScaler
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-import seaborn as sns
-import threading
-import tensorflow as tf
-import keras
+
+
 from keras._tf_keras.keras import Input
 from keras._tf_keras.keras.models import Sequential
 from keras._tf_keras.keras.layers import Dense, Dropout
 from keras._tf_keras.keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras._tf_keras.keras.utils import plot_model
+
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import matplotlib
 matplotlib.use('Agg')
 
