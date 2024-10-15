@@ -938,6 +938,7 @@ class ML_app(QMainWindow):
         self.model_setup()
 
     def model_setup(self):
+        print("\n=========== Modeling ==========\n")
         # model 선택
         # Logistic Regression / Decision Tree / Random Forest
         self.model_selection = QComboBox(self)
@@ -967,7 +968,6 @@ class ML_app(QMainWindow):
         train_layout.addWidget(train_model)
         train_model.clicked.connect(self.train)
 
-        print(self.model_selection_layout.count())
         if self.model_selection_layout.count() == 3:
             dnn_set_btn = self.model_selection_layout.itemAt(self.model_selection_layout.count() - 1)
             dnn_set_widget = dnn_set_btn.widget()
@@ -1032,8 +1032,10 @@ class ML_app(QMainWindow):
             self.model = RandomForestClassifier(max_depth=self.rf_max_depth.value(), n_estimators=self.n_estimators.value())
 
         elif model_name == "DNN":
+            self.dnn_hyperparams_layout = None
             setting_dnn_model = QPushButton("Setting model")
             setting_dnn_model.clicked.connect(self.DNN_modeling)
+            
             self.model_selection_layout.addWidget(setting_dnn_model)
 
     def DNN_modeling(self):
@@ -1059,6 +1061,7 @@ class ML_app(QMainWindow):
         ok_button = QPushButton("OK")
         ok_button.clicked.connect(self.close_dnn_dialog)
         ok_button.clicked.connect(self.dnn_hyperparameter_setting)
+        
         self.dnn_layout.addWidget(ok_button)
 
         self.dnn_dialog.setLayout(self.dnn_layout)
@@ -1069,18 +1072,21 @@ class ML_app(QMainWindow):
         self.dnn_dialog.accept()
 
     def dnn_hyperparameter_setting(self):
-        dnn_hyperparams_layout = QVBoxLayout()
+        if self.dnn_hyperparams_layout is not None:
+            self.clear_layout(self.dnn_hyperparams_layout)
+
+        self.dnn_hyperparams_layout = QVBoxLayout()
         dnn_epochs_layout = QHBoxLayout()
         dnn_batchsize_layout = QHBoxLayout()
         dnn_valdata_layout = QHBoxLayout()
         dnn_callbacks = QHBoxLayout()
 
-        dnn_hyperparams_layout.addLayout(dnn_epochs_layout)
-        dnn_hyperparams_layout.addLayout(dnn_batchsize_layout)
-        dnn_hyperparams_layout.addLayout(dnn_valdata_layout)
-        dnn_hyperparams_layout.addLayout(dnn_callbacks)
+        self.dnn_hyperparams_layout.addLayout(dnn_epochs_layout)
+        self.dnn_hyperparams_layout.addLayout(dnn_batchsize_layout)
+        self.dnn_hyperparams_layout.addLayout(dnn_valdata_layout)
+        self.dnn_hyperparams_layout.addLayout(dnn_callbacks)
 
-        self.hyperparameter_layout.addLayout(dnn_hyperparams_layout)
+        self.hyperparameter_layout.addLayout(self.dnn_hyperparams_layout)
 
         self.epochs_set = QSpinBox()
         self.epochs_set.setMinimum(1)
@@ -1137,8 +1143,9 @@ class ML_app(QMainWindow):
 
         # 뉴런 갯수 선택 스핀박스
         neuron_spinbox = QSpinBox()
+        set_neuron_num = len(np.unique(self.y_train))
         neuron_spinbox.setRange(1, 1024)  # 뉴런 갯수 설정 범위
-        neuron_spinbox.setValue(64)
+        neuron_spinbox.setValue(set_neuron_num)
         layer_layout.addWidget(neuron_spinbox)
 
         # 활성화 함수 선택 콤보박스
@@ -1216,7 +1223,7 @@ class ML_app(QMainWindow):
                         self.model.add(Dropout(dropout_rate))  # Dropout 레이어 추가
                         break
                     
-        print(self.model.summary())
+        self.model.summary()
     
         img_label = QLabel(plot_dialog)
     
@@ -1262,45 +1269,19 @@ class ML_app(QMainWindow):
 
     def run_training(self):
         print("=======Modeling Start========")
-        print(self.validation_size, self.epochs, self.batch_size, self.callbacks)
+
         X_train, X_val, y_train, y_val = train_test_split(self.X_train, self.y_train, test_size=self.validation_size, stratify=self.y_train)
         if isinstance(self.model, Sequential):
             self.model.compile(optimizer="adam",
                                loss="sparse_categorical_crossentropy",
                                metrics=['accuracy'])
             
-            history = self.model.fit(x=X_train, y=y_train, epochs=self.epochs, batch_size=self.batch_size,
+            self.history = self.model.fit(x=X_train, y=y_train, epochs=self.epochs, batch_size=self.batch_size,
                                      validation_data=(X_val, y_val), verbose=1,
                                      callbacks=self.callbacks)
             
             y_pred = self.model.predict(self.X_test)
             y_pred = np.argmax(y_pred, axis=1)
-    
-            # DNN Graph Dialog
-            dnn_graph_dialog = QDialog(self)
-            dnn_graph_dialog.setWindowTitle("DNN Graph")
-            dnn_graph_dialog.resize(800, 600)  # Dialog 크기 설정
-            layout = QVBoxLayout()
-            dnn_graph_dialog.setLayout(layout)
-    
-            # 그래프 그리기
-            plt.plot(history.history['accuracy'], label='Train')
-            plt.plot(history.history['val_accuracy'], label='Validation')  # 쌍따옴표 수정
-            plt.title("DNN Model Accuracy")  # 제목 수정
-            plt.xlabel("Epoch")
-            plt.ylabel("Accuracy")
-            plt.legend(loc='best')
-            plt.savefig("project_1/ml_app/dnn_model/dnn_accuracy.png")
-            plt.close()
-    
-            # Pixmap 설정
-            pixmap = QPixmap("project_1/ml_app/dnn_model/dnn_accuracy.png")
-            label = QLabel(dnn_graph_dialog)  # QLabel의 부모를 dnn_graph_dialog로 수정
-            pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            label.setPixmap(pixmap)
-            layout.addWidget(label)
-    
-            dnn_graph_dialog.exec_()
 
         else:   
             self.model.fit(self.X_train, self.y_train)  # 모델 훈련 시작
@@ -1357,9 +1338,6 @@ class ML_app(QMainWindow):
 
             cm_dialog.exec_()
 
-        class_names = list(self.y_test.unique())    # y_test의 클래스 이름들 class_names에 저장
-        plot_confusion_matrix(self.cm, class_names) # 혼동행렬 plot
-
         # model이 decision tree이면 plot_tree()로 tree를 보여줌
         if isinstance(self.model, DecisionTreeClassifier):
             plt.figure(figsize=(20, 20))
@@ -1374,13 +1352,43 @@ class ML_app(QMainWindow):
             dt_layout = QVBoxLayout()
             dt_dialog.setLayout(dt_layout)
 
-            pixmap = QPixmap("project_1/ml_app_tree_plot/decision_tree.png")
+            pixmap = QPixmap("project_1/ml_app/tree_plot/decision_tree.png")
             label = QLabel(dt_dialog)
             pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             label.setPixmap(pixmap)
             dt_layout.addWidget(label)
 
             dt_dialog.exec_()
+        
+        if isinstance(self.model, Sequential):
+            # DNN Graph Dialog
+            dnn_graph_dialog = QDialog(self)
+            dnn_graph_dialog.setWindowTitle("DNN Graph")
+            dnn_graph_dialog.resize(800, 600)  # Dialog 크기 설정
+            layout = QVBoxLayout()
+            dnn_graph_dialog.setLayout(layout)
+    
+            # 그래프 그리기
+            plt.plot(self.history.history['accuracy'], label='Train')
+            plt.plot(self.history.history['val_accuracy'], label='Validation')  # 쌍따옴표 수정
+            plt.title("DNN Model Accuracy")  # 제목 수정
+            plt.xlabel("Epoch")
+            plt.ylabel("Accuracy")
+            plt.legend(loc='best')
+            plt.savefig("project_1/ml_app/dnn_model/dnn_accuracy.png")
+            plt.close()
+    
+            # Pixmap 설정
+            pixmap = QPixmap("project_1/ml_app/dnn_model/dnn_accuracy.png")
+            label = QLabel(dnn_graph_dialog)  # QLabel의 부모를 dnn_graph_dialog로 수정
+            pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            label.setPixmap(pixmap)
+            layout.addWidget(label)
+    
+            dnn_graph_dialog.exec_()
+
+        class_names = list(self.y_test.unique())    # y_test의 클래스 이름들 class_names에 저장
+        plot_confusion_matrix(self.cm, class_names) # 혼동행렬 plot
 
     # layout clear해주는 함수
     def clear_layout(self, layout):
