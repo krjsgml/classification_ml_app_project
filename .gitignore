@@ -1,7 +1,13 @@
-data
+data/
 
 test
 
 __pycache__
 
-tree_plot
+tree_plot/
+
+dnn_model/
+
+data_preprocessing/
+
+model_result/
