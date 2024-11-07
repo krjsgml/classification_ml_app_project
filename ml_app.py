@@ -1268,10 +1268,9 @@ class ML_app(QMainWindow):
 
     def run_training(self):
         print("=======Modeling Start========")
-
-        X_train, X_val, y_train, y_val = train_test_split(self.X_train, self.y_train, test_size=self.validation_size, stratify=self.y_train)
-        classes = len(np.unique(y_train))
         if isinstance(self.model, Sequential):
+            X_train, X_val, y_train, y_val = train_test_split(self.X_train, self.y_train, test_size=self.validation_size, stratify=self.y_train)
+            classes = len(np.unique(y_train))
             # 다중 분류 문제
             if classes != 2:
                 print("sparse")
